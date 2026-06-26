@@ -1,0 +1,78 @@
+---
+import "../styles/global.css";
+import { octagonShape } from "../config/motion";
+
+interface Props {
+  title?: string;
+}
+
+const { title = "Bakehouse" } = Astro.props;
+
+// Build the resting clip-path string from config so the initial shape
+// (before JS, and for reduced-motion) matches the animated resting position.
+// Vertices are percentages of the mat box — no viewBox math needed.
+const staticClipPath = `polygon(${Object.values(octagonShape.vertices)
+  .map((v) => `${v.x}% ${v.y}%`)
+  .join(", ")})`;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+    <link rel="stylesheet" href="https://use.typekit.net/edz5xyo.css" />
+  </head>
+  <body>
+    <!--
+      Three layers, back to front:
+        1. Background  — the body itself (--color-background, white)
+        2. Midground   — the ambient mat div (--color-midground, tan)
+        3. Foreground  — chapter papers via <slot />
+    -->
+
+    <!-- Layer 2: Midground.
+         Fixed div, inset by --mat-inset-top (top) and --mat-inset (other three sides).
+         No width/height — four insets size a div correctly on their own.
+         Shape is a clip-path: polygon() in % of the box, so corners are always
+         undistorted and "50% across" is always the true middle at every window shape.
+         Drift is in px so breathing is visually even regardless of aspect ratio.
+         octagon.ts rewrites clip-path on each animation frame.
+         Edit vertices in config/motion.ts, not here. -->
+    <div
+      id="midground-mat"
+      class="fixed z-1"
+      style={`top: var(--mat-inset-top); right: var(--mat-inset); bottom: var(--mat-inset); left: var(--mat-inset); background: var(--color-midground); clip-path: ${staticClipPath};`}
+      aria-hidden="true"
+    >
+    </div>
+
+    <!-- Layer 3: Foreground (chapter papers) -->
+    <div class="fixed inset-0 z-2 flex items-center justify-center">
+      <slot />
+    </div>
+
+    <!-- Logo: left edge tracks the mat's left edge via the same --mat-inset token. -->
+    <a
+      href="/"
+      class="fixed z-3 leading-0 top-4 left-(--mat-inset)"
+      aria-label="Bakehouse"
+    >
+      <img
+        src="/logo.svg"
+        alt="Bakehouse web/design"
+        class="block w-90 h-auto"
+        width="360"
+        height="35"
+      />
+    </a>
+  </body>
+</html>
+
+<script>
+  import { initOctagonWobble } from "../motion/octagon";
+  initOctagonWobble();
+</script>

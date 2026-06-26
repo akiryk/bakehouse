@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+/* Layout inset tokens — on :root directly (not @theme) so they're plain CSS
+   custom properties, consumed only via var(). */
+:root {
+  --mat-inset: clamp(24px, 4vmin, 64px); /* right / bottom / left gutter */
+  --mat-inset-top: clamp(64px, 9vmin, 128px); /* larger — logo + nav headroom */
+}
+
+@theme {
+  /* ── Colors ─────────────────────────────────────────── */
+  --color-background: #ffffff; /* flat backmost layer */
+  --color-midground: #cfc6b6; /* the animated polygon (tan) */
+  --color-foreground: #ffffff; /* the "paper" */
+  --color-ink: #79530b; /* body + heading text (warm brown) */
+
+  /* TBD placeholders — provisional values, tune against the design */
+  --color-link: #8a8278; /* muted links */
+  --color-accent: #b8a99a; /* color dots / nav accents */
+
+  /* ── Typography ─────────────────────────────────────── */
+  --font-serif:
+    "adobe-caslon-pro", "Big Caslon", "Hoefler Text", Georgia, serif;
+
+  /* ── Shadows ─────────────────────────────────────────── */
+  /* paper's drop shadow — nudged up-left: x −2px, y +4px, blur 3px, 15% black */
+  --shadow-paper: -2px 4px 3px 0 rgb(0 0 0 / 0.15);
+}
+
+/* Base styles */
+body {
+  margin: 0;
+  overflow-x: hidden;
+  font-family: var(--font-serif);
+  color: var(--color-ink);
+  background-color: var(--color-background);
+}

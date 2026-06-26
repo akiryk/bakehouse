@@ -1,0 +1,46 @@
+---
+// Chapter.astro — the foreground "paper" wrapper.
+// header and footer slots are optional; main is always rendered.
+// The data-chapter attribute is used by the scroll engine (Step 7).
+
+interface Props {
+  id: string;
+}
+
+const { id } = Astro.props;
+---
+
+<article
+  class="chapter-paper"
+  data-chapter={id}
+>
+  {
+    Astro.slots.has("header") && (
+      <header class="chapter-header">
+        <slot name="header" />
+      </header>
+    )
+  }
+  <main class="chapter-main">
+    <slot name="main" />
+  </main>
+  {
+    Astro.slots.has("footer") && (
+      <footer class="chapter-footer">
+        <slot name="footer" />
+      </footer>
+    )
+  }
+</article>
+
+<style>
+  .chapter-paper {
+    background-color: var(--color-foreground);
+    color: var(--color-ink);
+    font-family: var(--font-serif);
+    box-shadow: var(--shadow-paper);
+    width: min(640px, 88vw);
+    min-height: 60vh;
+    padding: 4rem 3rem;
+  }
+</style>
