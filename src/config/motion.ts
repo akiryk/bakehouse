@@ -35,8 +35,8 @@ export interface OctagonShape {
 }
 
 export const octagonShape: OctagonShape = {
-  defaultDrift: 8, // px
-  defaultSpeed: 3, // seconds
+  defaultDrift: 15, // px
+  defaultSpeed: 5.5, // seconds
 
   vertices: {
     //                      x     y    drift (optional, px)
