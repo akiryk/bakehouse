@@ -1,0 +1,18 @@
+---
+// StageLeft — left-aligns its child within the foreground canvas, vertically centered.
+// Left edge is --stage-left-inset (global.css), which defaults to --mat-safe-inset-x
+// so the paper's left edge aligns to the mat's visible left edge out of the box.
+---
+
+<div class="stage-left">
+  <slot />
+</div>
+
+<style>
+  .stage-left {
+    position: absolute;
+    left: var(--stage-left-inset);
+    top: 49%;
+    transform: translateY(-50%);
+  }
+</style>

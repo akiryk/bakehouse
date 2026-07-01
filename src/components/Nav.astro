@@ -1,0 +1,49 @@
+---
+// Nav.astro — persistent top-right navigation.
+// Always visible; fixed above the midground mat.
+// Items, styling, and hover behavior: see docs/navigation.md.
+---
+
+<nav class="site-nav" aria-label="Main navigation">
+  <ul>
+    <li><a href="#" class="current">Home</a></li>
+    <li><a href="#">About</a></li>
+    <li><a href="#">Services</a></li>
+    <li><a href="#">Work</a></li>
+  </ul>
+</nav>
+
+<style>
+  .site-nav {
+    position: fixed;
+    top: 24px;
+    right: var(--mat-safe-inset-x);
+    z-index: 3;
+  }
+
+  .site-nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+  }
+
+  .site-nav a {
+    display: block;
+    padding: 6px;
+    font-family: var(--font-sans);
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--color-nav-text);
+    text-decoration: none;
+    transition: color 0.2s ease;
+  }
+
+  .site-nav a:hover {
+    color: var(--color-ink);
+  }
+
+  .site-nav .current {
+    color: var(--color-ink);
+  }
+</style>

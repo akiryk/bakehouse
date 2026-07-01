@@ -1,30 +1,48 @@
 @import "tailwindcss";
 
-/* Layout inset tokens — on :root directly (not @theme) so they're plain CSS
-   custom properties, consumed only via var(). */
+/* Mat safe-area tokens */
 :root {
-  --mat-inset: clamp(24px, 4vmin, 64px); /* right / bottom / left gutter */
-  --mat-inset-top: clamp(64px, 9vmin, 128px); /* larger — logo + nav headroom */
+  --mat-safe-inset-x: 20px; /* left / right -- must stay >= motionRadius */
+  --mat-safe-inset-top: 60px; /* reserves logo + nav headroom */
+  --mat-safe-inset-bottom: 50px; /* slightly more than sides for balance */
+}
+
+/* Stage layout tokens — govern where chapter papers sit within the foreground canvas.
+   --stage-left-inset: left edge of left-aligned chapters; defaults to the mat's
+   visible left edge so paper and mat share the same left margin out of the box. */
+:root {
+  --stage-left-inset: 10vw;
+}
+
+/* Paper shadow tokens.
+   The shadow is a ::before trapezoid that extends past the card's lower-right
+   corner. poke-x/poke-y control how far it juts out; blur softens the edge.
+   --paper-shadow-color references the ink token so it stays single-sourced. */
+:root {
+  --paper-shadow-color: #351800; /* warm dark, not raw black */
+  --paper-shadow-opacity: 0.4;
+  --paper-shadow-blur: 6px;
+  --paper-shadow-poke-x: 5px; /* how far the shadow juts past the card's right edge */
+  --paper-shadow-poke-y: 10px; /* how far the shadow juts past the card's bottom edge */
+  --paper-shadow-inset: 12px; /* how far the shadow polygon is inset from the left/top/bottom card edges */
 }
 
 @theme {
-  /* ── Colors ─────────────────────────────────────────── */
+  /* Colors */
   --color-background: #ffffff; /* flat backmost layer */
   --color-midground: #cfc6b6; /* the animated polygon (tan) */
   --color-foreground: #ffffff; /* the "paper" */
   --color-ink: #79530b; /* body + heading text (warm brown) */
 
-  /* TBD placeholders — provisional values, tune against the design */
+  /* TBD placeholders -- provisional values, tune against the design */
   --color-link: #8a8278; /* muted links */
   --color-accent: #b8a99a; /* color dots / nav accents */
+  --color-nav-text: #cfc6b6; /* nav links — same hue as midground */
 
-  /* ── Typography ─────────────────────────────────────── */
+  /* Typography */
   --font-serif:
     "adobe-caslon-pro", "Big Caslon", "Hoefler Text", Georgia, serif;
-
-  /* ── Shadows ─────────────────────────────────────────── */
-  /* paper's drop shadow — nudged up-left: x −2px, y +4px, blur 3px, 15% black */
-  --shadow-paper: -2px 4px 3px 0 rgb(0 0 0 / 0.15);
+  --font-sans: "futura-pt", "Futura", "Century Gothic", sans-serif;
 }
 
 /* Base styles */
@@ -34,4 +52,8 @@ body {
   font-family: var(--font-serif);
   color: var(--color-ink);
   background-color: var(--color-background);
+  -webkit-font-smoothing: antialiased;
+  font-weight: 400;
+  letter-spacing: 0.005em;
+  font-synthesis: none;
 }

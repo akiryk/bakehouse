@@ -24,7 +24,7 @@ progress-driven timeline — not a hardcoded animation. We will tune the curve b
 - Do nothing on pages where `useScrollEngine: false`.
 
 The engine knows only "things that enter and leave on scroll." It does not know what a
-paper is. (See `architecture.md` → the engine's contract.)
+paper is. (See `architecture.md` -> the engine's contract.)
 
 ---
 
@@ -32,11 +32,11 @@ paper is. (See `architecture.md` → the engine's contract.)
 
 Each chapter's motion has **two tracks**:
 
-- **paper** — the foreground rectangle.
-- **content** — the markup inside it.
+- **paper** -- the foreground rectangle.
+- **content** -- the markup inside it.
 
 By **default the two are synced** (content rides along with the paper). But they are
-**not locked together**: a chapter can offset the content track — e.g. the paper rises
+**not locked together**: a chapter can offset the content track -- e.g. the paper rises
 into view, then the content fades in a beat later. This is how we "suggest the letter
 metaphor without obeying it literally."
 
@@ -65,10 +65,10 @@ A small library of reusable, named motions so chapters stay declarative and the 
 feels consistent. Each preset is a factory returning the tween/timeline vars the engine
 applies. Starting set (rough, to grow):
 
-- `flyUpAccelerate()` — the default paper exit: slow lift, then rapid acceleration off
+- `flyUpAccelerate()` -- the default paper exit: slow lift, then rapid acceleration off
   the top.
-- `paperRise()` — a paper entering from below into resting position.
-- `fadeIn({ delay })` — content easing in, optionally offset from its paper.
+- `paperRise()` -- a paper entering from below into resting position.
+- `fadeIn({ delay })` -- content easing in, optionally offset from its paper.
 
 Tunable values (durations, eases, distances) should come from `config/motion.ts` where it
 makes sense, so motion feel can be adjusted in one place.
@@ -90,29 +90,65 @@ Separate from everything above. The midground mat's vertex wobble is a **continu
 always-on** animation that lives in `octagon.ts` and runs regardless of scroll or which
 chapter is showing (the mat persists in `Base.astro`).
 
-**How it works:** The mat is a `position: fixed` `<div>` clipped with
-`clip-path: polygon()`. `octagon.ts` rewrites the polygon string on each GSAP tick,
-animating the vertices. Using percentage coordinates in `clip-path` means the shape
-always fills the mat box correctly at every window proportion — "50% across" is always
-the true middle, and corners are never distorted.
+### Structure
 
-**Vertices:** Eight named points in `config/motion.ts → octagonShape.vertices`
-(upperLeft, upperCenter, upperRight, centerRight, lowerRight, lowerCenter, lowerLeft,
-centerLeft), each `{x, y, drift?}` where `x`/`y` are percentages of the mat box
-(0–100) and `drift` is an optional per-vertex radius in **px**. Editing the mat shape
-means editing these numbers — nothing is hardcoded in `Base.astro` or `octagon.ts`.
+The mat is a `position: fixed; inset: 0` `<div>` (full viewport). Its visible shape and
+margins come entirely from a `clip-path: polygon()` whose eight vertices are placed inward
+from the div edges by the `--mat-safe-inset-*` CSS tokens. The div itself has no inset
+gutter -- that concern belongs to the vertex homes, not the container.
 
-**Drift in px (not %):** Because a horizontal `%` is more pixels than a vertical `%` on
-a wide window, drift radii are expressed in px. `octagon.ts` writes each vertex as
-`calc(P% + Dpx)` so the breathing amount is visually even at every aspect ratio.
+### Safe-area model
 
-**Animation model:**
+Each vertex home sits inset from its nearest edge by a side-specific token:
 
-- Each vertex has a fixed home (its config `x`/`y`) and drifts within its `drift` radius.
-- Corners use `defaultDrift` (small); edge midpoints use a larger per-vertex `drift` so
-  the edges breathe while the corners stay nearly still.
-- GSAP tweens the pixel offset for each vertex with `sine.inOut`, `yoyo: true`,
-  `repeat: -1` — deliberate, continuous, never jerky.
-- Vertices run slightly out of phase via evenly distributed delays (no `Math.random()`).
-- Drift directions all point inward so edges bow gently rather than ballooning outward.
-- Honor reduced-motion: hold the resting shape when requested.
+```
+upperLeft:   ( var(--mat-safe-inset-x),               var(--mat-safe-inset-top)    )
+upperCenter: ( 50%,                                    var(--mat-safe-inset-top)    )
+upperRight:  ( calc(100% - var(--mat-safe-inset-x)),   var(--mat-safe-inset-top)    )
+centerRight: ( calc(100% - var(--mat-safe-inset-x)),   50%                          )
+lowerRight:  ( calc(100% - var(--mat-safe-inset-x)),   calc(100% - var(--mat-safe-inset-bottom)) )
+lowerCenter: ( 50%,                                    calc(100% - var(--mat-safe-inset-bottom)) )
+lowerLeft:   ( var(--mat-safe-inset-x),               calc(100% - var(--mat-safe-inset-bottom)) )
+centerLeft:  ( var(--mat-safe-inset-x),               50%                          )
+```
+
+The along-edge anchor is a `%` (0 / 50 / 100%); the inset from that anchor is a `px`
+token. Because the inset and the motion are both in px, each visible margin is a **true
+constant px** independent of window shape -- no aspect-ratio wobble.
+
+**Invariant:** every `--mat-safe-inset-*` value must be >= `motionRadius`. If an inset
+shrinks below the radius, an outward-drifting vertex can reach the clip boundary and get
+cut flat (the false-edge artifact). `octagon.ts` logs a console warning if this is
+violated at init.
+
+### Animation model (random-circle wander)
+
+Each vertex wanders continuously within a circle of radius `motionRadius` (px) around
+its home:
+
+1. Pick a uniformly random point inside the circle (angle uniform in [0, 2pi]; radius =
+   sqrt(rand) \* motionRadius for uniform area distribution -- without sqrt, points cluster
+   near the center).
+2. Tween toward it (GSAP, configurable ease and duration).
+3. On arrival, go to 1 -- forever.
+
+This produces organic, non-repeating paths with no fixed direction and no ping-pong rail.
+Duration per leg varies by +/-`LEG_SPEED_VARIANCE` so vertices never synchronise.
+Vertices start staggered by `defaultSpeed / 8` so they are always out of phase.
+
+**Velocity continuity** at leg boundaries is controlled by two constants in `octagon.ts`:
+
+- `LEG_EASE` -- ease per leg. `"none"` (linear) = no deceleration hitch at targets.
+  `"sine.in"` or `"power1.in"` are alternatives if linear feels mechanical.
+- `LEG_OVERLAP` -- fraction of a leg at which the next begins. `0` = purely sequential.
+  `0.1`-`0.2` blends velocity when using a non-linear ease.
+
+**Reduced motion:** `gsap.matchMedia()` skips all tweens when
+`prefers-reduced-motion: reduce` is set; vertices hold their home positions.
+
+### One source, no drift
+
+`octagon.ts` reads `--mat-safe-inset-*` via `getComputedStyle` at init and computes home
+positions in the same px arithmetic the CSS uses. The static clip-path in `Base.astro`
+uses the same tokens via `var()`. Both resolve identically -- no discrepancy between
+before-JS and after-JS rendering.

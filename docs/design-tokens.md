@@ -2,14 +2,14 @@
 
 Two homes, split by concern:
 
-- **Look** — colors, fonts, type — live in the **Tailwind v4 `@theme` block** in
+- **Look** -- colors, fonts, type -- live in the **Tailwind v4 `@theme` block** in
   `src/styles/global.css`. Declaring them there generates both utility classes
   (`bg-midground`, `text-ink`, `font-serif`) **and** `:root` CSS variables
   (`var(--color-midground)`), so the same token is reachable from markup and from JS/CSS.
-- **Motion** — wobble ranges, easings, durations — live in `src/config/motion.ts`,
+- **Motion** -- wobble radius, speed -- live in `src/config/motion.ts`,
   because they're consumed by GSAP, not by styling.
 
-Rule: if a value affects how the site looks or feels, it belongs in one of these — never
+Rule: if a value affects how the site looks or feels, it belongs in one of these -- never
 inline in a component.
 
 ---
@@ -31,38 +31,82 @@ inline in a component.
 This generates `bg-background`, `bg-midground`, `bg-foreground`, `text-ink`, etc., plus
 the matching CSS variables.
 
-Background and paper are both white; the paper reads against the tan midground via a soft
-shadow. Decided and placeholder values:
+Background and paper are both white; the paper reads against the tan midground via the
+pseudo-element shadow (see _Paper shadow tokens_ below). Placeholder values:
 
-- `--shadow-paper: -2px 4px 3px 0 rgb(0 0 0 / 0.15)` — paper drop shadow (nudged up-left).
-- `--color-link` — muted links (provisional: `#8a8278`).
-- `--color-accent` — color dots / nav accents (provisional: `#b8a99a`).
+- `--color-link` -- muted links (provisional: `#8a8278`).
+- `--color-accent` -- color dots / nav accents (provisional: `#b8a99a`).
 
 ---
 
-## Layout inset tokens
+## Paper shadow tokens
 
-These live on `:root` directly (not inside `@theme`) because they are consumed only as
-plain CSS custom properties, not as Tailwind utility classes:
+The paper's shadow is a `::before` pseudo-element -- a blurred rectangle slightly smaller
+than the card, offset and rotated so the blur reveals mainly at one corner (the
+lifting-corner effect). Every aspect is one token; `--paper-shadow-rotate` is the key dial.
+
+```css
+/* src/styles/global.css — :root */
+:root {
+  --paper-shadow-color: var(
+    --color-ink
+  ); /* references ink token, not raw hex */
+  --paper-shadow-opacity: 0.15;
+  --paper-shadow-blur: 20px;
+  --paper-shadow-inset: 6px; /* how much smaller the shadow rect is than the card */
+  --paper-shadow-offset-x: 12px; /* shifts shadow toward bottom-right */
+  --paper-shadow-offset-y: 8px;
+  --paper-shadow-rotate: 2deg; /* the lift angle -- key dial for the effect */
+}
+```
+
+Layering model in `Chapter.astro` (no `z-index: -1`, no `overflow: hidden`):
+
+- `.chapter-paper` -- shadow stage: `position: relative; isolation: isolate; will-change: transform`
+- `.chapter-paper::before` -- the shadow rectangle at `z-index: 0`
+- `.chapter-paper-content` -- the crisp white card at `z-index: 1`
+
+`isolation: isolate` creates a stacking context so `::before` sits behind the content
+without a negative z-index. `will-change: transform` on both the wrapper and `::before`
+promotes compositing layers before scroll starts, keeping the fly-away paint-free.
+
+The old `--shadow-paper` `box-shadow` token is retired (Epic 07). There is exactly one
+shadow mechanism on the paper.
+
+---
+
+## Mat safe-area tokens
+
+These live on `:root` directly (not inside `@theme`) because they are consumed as plain
+CSS custom properties -- by the static clip-path in `Base.astro` and by `octagon.ts` via
+`getComputedStyle` -- not as Tailwind utility classes.
 
 ```css
 /* src/styles/global.css */
 :root {
-  --mat-inset: clamp(24px, 4vmin, 64px); /* right / bottom / left gutter */
-  --mat-inset-top: clamp(64px, 9vmin, 128px); /* larger — logo + nav headroom */
+  --mat-safe-inset-x: 20px; /* left / right -- must stay >= motionRadius */
+  --mat-safe-inset-top: 140px; /* reserves logo + nav headroom              */
+  --mat-safe-inset-bottom: 40px; /* slightly more than sides for visual balance */
 }
 ```
 
-The mat `<div>` is sized by `top: var(--mat-inset-top)` and
-`right/bottom/left: var(--mat-inset)` — no `width` or `height` needed (four insets size
-a fixed div on their own). The logo's left edge uses `--mat-inset` so it always tracks
-the mat's left edge.
+The mat `<div>` is **full-bleed** (`position: fixed; inset: 0`). Visible margins come
+entirely from placing vertex homes this far inside the div edges via `clip-path:
+polygon()`. The logo's `left` uses `var(--mat-safe-inset-x)` so it always aligns to the
+mat's visible left edge by construction.
+
+**Invariant:** every token value must be >= `motionRadius` (currently 10px). If an inset
+falls below the radius, an outward-drifting vertex can reach the clip boundary and produce
+a false flat edge. `octagon.ts` logs a warning at init if this is violated.
+
+The visible margin on each side breathes by +/- `motionRadius` around the inset:
+sides ~10-30 px, bottom ~30-50 px, top ~130-150 px.
 
 ---
 
 ## Font: Adobe Caslon Pro (via Adobe Fonts)
 
-Loads from an account web-project embed — **not npm, not auto-fetchable**. The embed is
+Loads from an account web-project embed -- **not npm, not auto-fetchable**. The embed is
 ready:
 
 ```html
@@ -82,7 +126,7 @@ token:
 
 This generates `font-serif` and `var(--font-serif)`. The fallback stack keeps layout
 stable before the kit loads and acceptable if it ever fails. Set body copy to `font-serif`.
-Don't block other steps on the font — the fallback renders fine meanwhile.
+Don't block other steps on the font -- the fallback renders fine meanwhile.
 
 ---
 
@@ -98,29 +142,20 @@ set during the build; the point is that there's one home for them.
 
 Behavioral values GSAP needs, kept out of the styling layer. The file exports two things:
 
-**`octagonShape`** — the midground mat's geometry and wobble config:
+**`octagonShape`** -- the mat's wobble config:
 
 ```ts
 export const octagonShape = {
-  defaultDrift: 8, // px — fallback drift radius per vertex
-  defaultSpeed: 9, // seconds for one full out-and-back cycle
-  vertices: {
-    // Eight named points clockwise from upper-left, each {x, y, drift?}.
-    // x and y are percentages of the mat box (0–100).
-    // drift is in px (not %) so breathing is visually even at every aspect ratio.
-    // Resting positions sit at the box edges; the gutter comes from --mat-inset.
-    upperLeft: { x: 0, y: 0 },
-    upperCenter: { x: 50, y: 0, drift: 14 }, // top edge bows inward
-    // ... upperRight, centerRight, lowerRight, lowerCenter, lowerLeft, centerLeft
-  },
+  motionRadius: 10, // px -- radius of the random-wander circle per vertex
+  defaultSpeed: 5.5, // seconds -- nominal duration of each wander leg
 };
 ```
 
-`octagon.ts` writes each animated vertex as `calc(P% + Dpx)` inside a
-`clip-path: polygon()` string on the mat div. Editing the mat shape means editing
-`octagonShape.vertices` — nowhere else.
+Vertex homes are **not** stored here. They are derived at runtime in `octagon.ts` from the
+`--mat-safe-inset-*` CSS tokens via `getComputedStyle`. To change the shape or margins,
+edit those tokens in `global.css`; `octagon.ts` picks them up automatically.
 
-**`motion`** — scroll / fly-away timing:
+**`motion`** -- scroll / fly-away timing:
 
 ```ts
 export const motion = {

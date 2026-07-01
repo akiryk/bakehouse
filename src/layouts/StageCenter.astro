@@ -1,0 +1,17 @@
+---
+// StageCenter — centers its child within the foreground canvas.
+// Use this for chapters that should sit at the visual middle of the screen.
+---
+
+<div class="stage-center">
+  <slot />
+</div>
+
+<style>
+  .stage-center {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+</style>

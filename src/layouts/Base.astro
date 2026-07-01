@@ -1,6 +1,6 @@
 ---
 import "../styles/global.css";
-import { octagonShape } from "../config/motion";
+import Nav from "../components/Nav.astro";
 
 interface Props {
   title?: string;
@@ -8,12 +8,21 @@ interface Props {
 
 const { title = "Bakehouse" } = Astro.props;
 
-// Build the resting clip-path string from config so the initial shape
-// (before JS, and for reduced-motion) matches the animated resting position.
-// Vertices are percentages of the mat box — no viewBox math needed.
-const staticClipPath = `polygon(${Object.values(octagonShape.vertices)
-  .map((v) => `${v.x}% ${v.y}%`)
-  .join(", ")})`;
+// Static (pre-JS / reduced-motion) clip-path, expressed with the same CSS
+// tokens that octagon.ts reads at runtime — both sources resolve identically.
+// calc(0% + var(X)) simplifies to var(X); calc(100% - var(X)) stays as-is.
+const staticClipPath = [
+  "polygon(",
+  "  var(--mat-safe-inset-x)               var(--mat-safe-inset-top),",
+  "  66%                                   var(--mat-safe-inset-top),",
+  "  calc(100% - var(--mat-safe-inset-x))  var(--mat-safe-inset-top),",
+  "  calc(100% - var(--mat-safe-inset-x))  50%,",
+  "  calc(100% - var(--mat-safe-inset-x))  calc(100% - var(--mat-safe-inset-bottom)),",
+  "  33%                                   calc(100% - var(--mat-safe-inset-bottom)),",
+  "  var(--mat-safe-inset-x)               calc(100% - var(--mat-safe-inset-bottom)),",
+  "  var(--mat-safe-inset-x)               50%",
+  ")",
+].join("\n");
 ---
 
 <!doctype html>
@@ -35,42 +44,107 @@ const staticClipPath = `polygon(${Object.values(octagonShape.vertices)
     -->
 
     <!-- Layer 2: Midground.
-         Fixed div, inset by --mat-inset-top (top) and --mat-inset (other three sides).
-         No width/height — four insets size a div correctly on their own.
-         Shape is a clip-path: polygon() in % of the box, so corners are always
-         undistorted and "50% across" is always the true middle at every window shape.
-         Drift is in px so breathing is visually even regardless of aspect ratio.
-         octagon.ts rewrites clip-path on each animation frame.
-         Edit vertices in config/motion.ts, not here. -->
+         Full-bleed fixed div (inset: 0). The visible margins come entirely
+         from vertex homes being inset by the --mat-safe-inset-* tokens — not
+         from the div's own position. clip-path: polygon() defines the visible
+         area; octagon.ts rewrites it every frame. To change margins, edit the
+         tokens in global.css; don't touch this element. -->
     <div
       id="midground-mat"
-      class="fixed z-1"
-      style={`top: var(--mat-inset-top); right: var(--mat-inset); bottom: var(--mat-inset); left: var(--mat-inset); background: var(--color-midground); clip-path: ${staticClipPath};`}
+      class="fixed inset-0 z-1"
+      style={`background: var(--color-midground); clip-path: ${staticClipPath};`}
       aria-hidden="true"
     >
     </div>
 
-    <!-- Layer 3: Foreground (chapter papers) -->
-    <div class="fixed inset-0 z-2 flex items-center justify-center">
+    <!-- Layer 3: Foreground stage — full-screen canvas, no layout opinion.
+         Each chapter wraps itself in a StageCenter or StageLeft component
+         that positions it absolutely within this div. -->
+    <div class="fixed inset-0 z-2">
       <slot />
     </div>
 
-    <!-- Logo: left edge tracks the mat's left edge via the same --mat-inset token. -->
-    <a
-      href="/"
-      class="fixed z-3 leading-0 top-4 left-(--mat-inset)"
-      aria-label="Bakehouse"
-    >
-      <img
-        src="/logo.svg"
-        alt="Bakehouse web/design"
-        class="block w-90 h-auto"
-        width="360"
-        height="35"
-      />
+    <Nav />
+
+    <!-- Logo: fixed top-left, tracks the mat's visible left edge.
+         .logo-backdrop rotates the paper zone; the img stays upright above it.
+         To tune: edit the inset/rotate values in .logo-backdrop and the
+         poke/blur values in .logo-shadow-wrap / .logo-shadow-shape below. -->
+    <a href="/" class="logo fixed z-3 top-0 left-0" aria-label="Bakehouse">
+      <div class="logo-backdrop">
+        <div class="logo-shadow-wrap">
+          <div class="logo-shadow-shape"></div>
+        </div>
+        <div class="logo-paper"></div>
+      </div>
+      <img src="/logo.svg" alt="Bakehouse" />
     </a>
   </body>
 </html>
+
+<style>
+  .logo {
+    display: inline-block;
+    isolation: isolate;
+  }
+
+  /* Rotating paper zone — extends past the img by the padding values.
+     top/left/right/bottom = how far the paper overhangs the logo on each side.
+     rotate() = tilt angle (positive = clockwise). */
+  .logo-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: -30px;
+    bottom: -6px;
+    transform: rotate(0.5deg);
+  }
+
+  /* Blur wrapper — extends past the backdrop by the shadow poke amounts.
+     right/bottom here are relative to .logo-backdrop's edges. */
+  .logo-shadow-wrap {
+    position: absolute;
+    inset: 0;
+    right: -6px; /* poke-x: shadow juts this far past paper's right edge */
+    bottom: -6px; /* poke-y: shadow juts this far past paper's bottom edge */
+    filter: blur(4px);
+    z-index: 0;
+  }
+
+  /* Clipped trapezoid: three sides inset, lower-right corner pokes out.
+     First  px value = shadow inset from paper's left/top/bottom edges. */
+  .logo-shadow-shape {
+    width: 100%;
+    height: 100%;
+    clip-path: polygon(
+      12px 12px,
+      calc(100% - 14px) 10px,
+      100% 100%,
+      1px calc(100% - 12px)
+    );
+    background: var(--paper-shadow-color);
+    opacity: 0.25;
+  }
+
+  /* White card — fills the backdrop, above the shadow. */
+  .logo-paper {
+    position: absolute;
+    inset: 0;
+    background: var(--color-foreground);
+    z-index: 1;
+  }
+
+  /* Logo image — upright, above the tilted paper.
+     margin controls breathing room between the logo and the paper edges. */
+  .logo img {
+    position: relative;
+    z-index: 2;
+    display: block;
+    width: 306px;
+    height: auto;
+    margin: 14px 0 10px 10px; /* top right bottom left */
+  }
+</style>
 
 <script>
   import { initOctagonWobble } from "../motion/octagon";
