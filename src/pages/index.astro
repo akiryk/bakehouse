@@ -1,16 +1,19 @@
 ---
 import Base from "../layouts/Base.astro";
 import IntroContent from "../chapters/home/01-intro/Content.astro";
+import PlaceholderContent from "../chapters/home/02-placeholder/Content.astro";
 ---
 
 <Base>
   <IntroContent />
+  <PlaceholderContent />
 </Base>
 
 <script>
   import { initScrollEngine } from "../motion/engine";
   import { pages } from "../config/pages";
   import introMotion from "../chapters/home/01-intro/motion";
+  import placeholderMotion from "../chapters/home/02-placeholder/motion";
 
-  initScrollEngine(pages.home, [introMotion]);
+  initScrollEngine(pages.home, [introMotion, placeholderMotion]);
 </script>

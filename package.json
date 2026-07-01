@@ -12,14 +12,16 @@
     "astro": "astro"
   },
   "dependencies": {
+    "@astrojs/check": "^0.9.9",
     "astro": "^7.0.2",
-    "gsap": "^3.12.5"
+    "gsap": "^3.12.5",
+    "typescript": "^6.0.3"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.10",
-    "tailwindcss": "^4.1.10",
     "prettier": "^3.5.3",
-    "prettier-plugin-astro": "^0.14.1"
+    "prettier-plugin-astro": "^0.14.1",
+    "tailwindcss": "^4.1.10"
   },
   "volta": {
     "node": "22.23.1"

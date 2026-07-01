@@ -13,8 +13,8 @@ export interface OctagonMotion {
 }
 
 export const octagonShape: OctagonMotion = {
-  motionRadius: 12, // px  (safe-inset-x is 20px, so 10px clears with room)
-  defaultSpeed: 5, // a smaller number will be faster (1 = fast; 10 = medium)
+  motionRadius: 16, // px  (safe-inset-x is 20px, so 10px clears with room)
+  defaultSpeed: 2, // a smaller number will be faster (1 = fast; 10 = medium)
 };
 
 // ─── Scroll ───────────────────────────────────────────────────────────────────

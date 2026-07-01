@@ -13,43 +13,53 @@ export const pages: Record<string, PageConfig> = {
   home: {
     useScrollEngine: true,
     chapters: [
-      { id: "intro", motionPath: "home/01-intro/motion" },
-      // add the next chapter here
+      {
+        id: "intro",
+        motionPath: "home/01-intro/motion",
+        midground: "--midground-tan",
+      },
+      {
+        id: "placeholder",
+        motionPath: "home/02-placeholder/motion",
+        midground: "--midground-slate",
+      },
     ],
   },
-  // about: { useScrollEngine: false, chapters: [] },
 };
 ```
 
 - **Add a chapter** → create its folder (below), then add one entry to the list.
 - **Reorder chapters** → reorder the list.
 - **Remove a chapter** → delete its entry (and, when you're sure, its folder).
-- **Make a page scroll normally** → `useScrollEngine: false`. The page renders in
-  ordinary document flow with no pinning or fly-away.
+- **Make a page scroll normally** → `useScrollEngine: false`.
 
-The engine never assumes a chapter count. Two chapters or nine: same code path.
+The `midground` field references a CSS palette token from `global.css`. The engine
+interpolates `--color-midground` between adjacent chapters' values as the transition
+scrolls. Omit it to default to `--midground-tan`.
 
 ### Wiring chapters into a page
 
-Each `.astro` page imports its chapter content and motion explicitly and calls
-`initScrollEngine` in a `<script>` block:
+Each `.astro` page imports its chapter content and motion explicitly:
 
 ```astro
 ---
 import Base from "../layouts/Base.astro";
 import IntroContent from "../chapters/home/01-intro/Content.astro";
+import PlaceholderContent from "../chapters/home/02-placeholder/Content.astro";
 ---
 
 <Base>
   <IntroContent />
+  <PlaceholderContent />
 </Base>
 
 <script>
   import { initScrollEngine } from "../motion/engine";
   import { pages } from "../config/pages";
   import introMotion from "../chapters/home/01-intro/motion";
+  import placeholderMotion from "../chapters/home/02-placeholder/motion";
 
-  initScrollEngine(pages.home, [introMotion]);
+  initScrollEngine(pages.home, [introMotion, placeholderMotion]);
 </script>
 ```
 
@@ -62,7 +72,7 @@ The motion array must match the `chapters` order in `pages.ts`.
 ```
 src/chapters/<page>/<NN-name>/
   Content.astro   ← the markup (imports Chapter.astro and uses its slots)
-  motion.ts       ← how it enters and leaves (see motion.md)
+  motion.ts       ← how it enters, leaves, and reveals its content
 ```
 
 The `NN-` prefix (01-, 02-) is for human ordering on disk only; the real order is
@@ -72,40 +82,127 @@ the list in `pages.ts`.
 
 ## The content shape: `Content.astro`
 
-`Content.astro` renders the chapter by wrapping the markup inside `Chapter.astro`,
-which provides the foreground paper. Chapter.astro requires an `id` prop (used by
-the scroll engine) and three **optional** named slots:
+### Standard chapter (with paper)
+
+`Chapter.astro` renders the foreground white card. It requires an `id` prop (matched
+by the scroll engine via `[data-chapter]`) and three **optional** named slots:
 
 - `header` — e.g. a title or eyebrow
-- `main` — the body. **Accepts arbitrary markup**: prose, an image grid, a table, an
-  embed, anything.
-- `footer` — e.g. a caption, a small action, a flourish
-
-A chapter uses only the slots it needs. Example for the intro chapter:
+- `main` — the body. Accepts arbitrary markup.
+- `footer` — e.g. a caption, small action, or flourish
 
 ```astro
 ---
 import Chapter from "../../../components/Chapter.astro";
+import StageLeft from "../../../layouts/StageLeft.astro";
 ---
 
-<Chapter id="intro">
-  <Fragment slot="main">
-    <p>Dear ______,</p>
-    <p>Thank you for your interest in my studio. I design and build websites
-       locally for a select group of very special clients …</p>
-  </Fragment>
-</Chapter>
+<StageLeft>
+  <Chapter id="intro">
+    <Fragment slot="main">
+      <p>Dear ______,</p>
+      <p>Thank you for your interest …</p>
+    </Fragment>
+  </Chapter>
+</StageLeft>
 ```
 
-That's the whole convention. Because `main` takes arbitrary markup, a chapter can
-change from a paragraph today to an image grid next week with no change to its
-motion, and no change to the engine.
+### Paperless chapter (`paper={false}`)
 
-### When the shape gets in your way
+Pass `paper={false}` to skip the white card and shadow entirely. Content sits
+directly on the midground. Use this for full-bleed, atmospheric chapters.
 
-If a chapter genuinely doesn't fit header/main/footer, write a custom content
-component and use it instead — see `architecture.md` → escape-hatch ladder, rung 3.
-The framework won't fight you.
+```astro
+<StageCenter>
+  <Chapter id="my-chapter" paper={false}>
+    <div slot="main">
+      <!-- content goes here, styled for the midground color -->
+    </div>
+  </Chapter>
+</StageCenter>
+```
+
+Text in a paperless chapter should use `color: var(--color-foreground)` (white)
+so it reads against the midground tan or slate.
+
+---
+
+## Declaring a midground color
+
+A chapter's midground color is declared in `pages.ts`, not in the component:
+
+```ts
+{ id: "my-chapter", motionPath: "…", midground: "--midground-slate" }
+```
+
+Available palette tokens are in `global.css` under `/* Midground color palette */`.
+To add a new color:
+
+1. Add a token to the `:root` palette block in `global.css`.
+2. Reference it by name in `pages.ts`.
+
+---
+
+## Adding scroll beats
+
+Beats are intra-chapter reveals driven by scroll. A chapter with beats is pinned
+(visually — all layers are already `position:fixed`) while the beats timeline scrubs,
+then exits.
+
+### 1. Mark beat elements in the DOM
+
+Give each block a `data-beat` attribute:
+
+```astro
+<div slot="main">
+  <p data-beat="a">First beat.</p>
+  <p data-beat="b">Second beat.</p>
+</div>
+```
+
+### 2. Build the beats timeline in `motion.ts`
+
+```ts
+import gsap from "gsap";
+import type { ChapterMotion } from "../../../motion/engine";
+import { fadeInUpFrom, fadeInUpTo, shiftUp } from "../../../motion/presets";
+
+const motion: ChapterMotion = {
+  beatDurationVH: 150, // scroll travel allocated to the beats window
+
+  beats(container) {
+    const a = container.querySelector("[data-beat='a']");
+    const b = container.querySelector("[data-beat='b']");
+    const tl = gsap.timeline();
+
+    tl.fromTo(a, fadeInUpFrom(), fadeInUpTo(), 0); // beat 1
+    tl.fromTo(b, fadeInUpFrom(), fadeInUpTo(), 0.55); // beat 2 …
+    tl.to(a, shiftUp(), 0.55); // … A shifts as B appears
+
+    return tl;
+  },
+};
+
+export default motion;
+```
+
+The engine wraps the returned timeline in a scrubbed ScrollTrigger. You do not add
+`scrollTrigger` to the timeline itself.
+
+### Reduced motion
+
+The engine calls `tl.progress(1)` in the reduced-motion branch, jumping all beats
+to their final visible state. No additional work needed in `motion.ts`.
+
+### Beat presets
+
+| Preset               | Use                                                   |
+| -------------------- | ----------------------------------------------------- |
+| `fadeInUpFrom()`     | `from` state: hidden, 40 px below                     |
+| `fadeInUpTo()`       | `to` state: visible, at natural position              |
+| `shiftUp(distance?)` | move element up from current position (default 36 px) |
+
+Use raw GSAP for anything these don't cover.
 
 ---
 

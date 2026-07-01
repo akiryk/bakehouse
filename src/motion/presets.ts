@@ -1,13 +1,21 @@
 /**
  * Reusable motion factories. Each returns GSAP tween vars the engine applies.
  * Values that affect feel come from config/motion.ts, not hardcoded here.
+ *
+ * Beat presets (fadeInUpFrom/To, shiftUp) are used inside a chapter's beats()
+ * function to build the scrubbed timeline. Use them with gsap.fromTo():
+ *
+ *   tl.fromTo(el, fadeInUpFrom(), fadeInUpTo());   // reveal
+ *   tl.to(el, shiftUp(), "<");                     // shift while next reveals
  */
-import type { TweenVars } from "gsap";
+import "gsap";
 import { motion as cfg } from "../config/motion";
 
-export type MotionVars = TweenVars;
+export type MotionVars = gsap.TweenVars;
 
-/** Default paper exit: slow lift then rapid acceleration off the top of the viewport. */
+// ─── Paper presets ────────────────────────────────────────────────────────────
+
+/** Default paper exit: slow lift then rapid acceleration off the top. */
 export function flyUpAccelerate(overrides?: MotionVars): MotionVars {
   return {
     y: `-${cfg.scroll.flyUp.distance}vh`,
@@ -34,4 +42,31 @@ export function fadeIn(options?: { delay?: number } & MotionVars): MotionVars {
     delay,
     ...rest,
   };
+}
+
+// ─── Beat presets ─────────────────────────────────────────────────────────────
+
+/**
+ * Starting state for a fade-in-from-below beat.
+ * Use as the `from` argument of gsap.fromTo() / tl.fromTo().
+ */
+export function fadeInUpFrom(overrides?: MotionVars): MotionVars {
+  return { opacity: 0, y: 40, ...overrides };
+}
+
+/**
+ * Ending state for a fade-in-from-below beat.
+ * Use as the `to` argument of gsap.fromTo() / tl.fromTo().
+ */
+export function fadeInUpTo(overrides?: MotionVars): MotionVars {
+  return { opacity: 1, y: 0, ease: "power2.out", ...overrides };
+}
+
+/**
+ * Shift an element upward from its current position.
+ * Used to move a prior beat out of the way while the next one appears.
+ * @param distance  px to move up (default 36)
+ */
+export function shiftUp(distance = 36, overrides?: MotionVars): MotionVars {
+  return { y: `-=${distance}`, ease: "power1.inOut", ...overrides };
 }
