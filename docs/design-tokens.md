@@ -142,18 +142,24 @@ set during the build; the point is that there's one home for them.
 
 Behavioral values GSAP needs, kept out of the styling layer. The file exports two things:
 
-**`octagonShape`** -- the mat's wobble config:
+**`octagonShape`** -- the mat's wobble and shape config:
 
 ```ts
 export const octagonShape = {
-  motionRadius: 10, // px -- radius of the random-wander circle per vertex
-  defaultSpeed: 5.5, // seconds -- nominal duration of each wander leg
+  motionRadius: 16, // px -- radius of the random-wander circle per vertex
+  defaultSpeed: 2, // seconds -- nominal duration of each wander leg
+  edgeCurve: 0.035, // fraction of side -- bezier handle length for center points
 };
 ```
 
-Vertex homes are **not** stored here. They are derived at runtime in `octagon.ts` from the
-`--mat-safe-inset-*` CSS tokens via `getComputedStyle`. To change the shape or margins,
-edit those tokens in `global.css`; `octagon.ts` picks them up automatically.
+`edgeCurve` is the single dial for curviness: `0` = straight edges, `0.035` = gentle bow,
+`0.1`+ = pronounced curve. Handle length = `edgeCurve × side` (width for top/bottom edges,
+height for left/right). Recomputed on resize.
+
+Vertex homes are **not** stored here. They are derived at runtime in `octagon.ts` by
+measuring the viewport and resolving the `--mat-safe-inset-*` tokens via a probe element
+(not `getComputedStyle` string-parse, which fails for `clamp()` values). To change the
+shape or margins, edit those tokens in `global.css`; `octagon.ts` picks them up automatically.
 
 **`motion`** -- scroll / fly-away timing:
 

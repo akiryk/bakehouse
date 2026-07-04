@@ -13,7 +13,7 @@
    these palette stops. Add new palette entries here; reference them in pages.ts. */
 :root {
   --midground-tan: #cfc6b6; /* warm tan — the default/initial mat color */
-  --midground-slate: #c1caca; /* cool blue-grey */
+  --midground-slate: #8a9ba5; /* cool blue-grey */
   --midground-slate-deep: #8a9ba5; /* darker blue-grey — chapter 2 beat 2 target */
 }
 

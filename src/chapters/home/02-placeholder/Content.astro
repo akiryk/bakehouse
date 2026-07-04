@@ -1,43 +1,263 @@
 ---
-// Chapter 2 — paperless, Futura PT medium 32px, white, centered on midground.
-// Two scroll beats: line A (intro), then line B (experience) with midground darken.
+// Chapter 2 — "A brief history": paperless timeline chapter.
+//
+// Element roles (see motion/timeline-kit.ts):
+//   [data-el="intro"]    the opening text block (independent)
+//   [data-el="line"]     the vertical line — viewport-tall, static once in;
+//                        animated on its OWN via show("line")/hide("line"),
+//                        independent of the years
+//   [data-el="tape"]     the year strip (numbers/ticks/notes), moved by
+//                        enterTape / travel / stopTimelineAt
+//   [data-overlay="id"]  independent content revealed at stops (holds still
+//                        while the years move)
+//
+// Years render from script.ts (NOTES/CONFIG) so there's one tweak file.
 import Chapter from "../../../components/Chapter.astro";
-import StageCenter from "../../../layouts/StageCenter.astro";
+import { CONFIG, NOTES } from "./script";
+
+const years = Array.from(
+  { length: CONFIG.lastYear - CONFIG.firstYear + 1 },
+  (_, i) => CONFIG.firstYear + i,
+);
 ---
 
-<StageCenter>
-  <Chapter id="placeholder" paper={false}>
-    <div slot="main" class="beats-container">
-      <p class="beat-text" data-beat="a">
-        Bakehouse Studio is Adam Kiryk, a designer and web developer.
-      </p>
-      <p class="beat-text" data-beat="b">
-        I've been leading web design projects for several years.
-      </p>
+<Chapter id="history" paper={false}>
+  <div slot="main" class="tl-stage" data-el="stage">
+    <!-- Intro — shown/hidden by the script. The wrapper owns vertical
+         centering (flex); the script animates the inner [data-el="intro"]
+         block's opacity + a small y, so it never fights a centering transform. -->
+    <div class="tl-intro-wrap">
+      <header class="tl-intro" data-el="intro">
+        <h2>A brief history</h2>
+        <p>
+          Bakehouse is Adam Kiryk, a designer and web developer based in
+          Durango,&nbsp;Colorado.
+        </p>
+      </header>
     </div>
-  </Chapter>
-</StageCenter>
+
+    <!-- The line and the year strip are now SEPARATE elements, each driven
+         independently from the script:
+           [data-el="line"]  the vertical line — show("line") / hide("line")
+           [data-el="tape"]  the year strip — enterTape / travel / stopTimelineAt -->
+    <div class="tl-viewport">
+      <div class="tl-line" data-el="line" aria-hidden="true"></div>
+      <div class="tl-tape" data-el="tape">
+        {
+          years.map((year) => (
+            <div
+              class="tl-year"
+              data-year={year}
+              style={`top:${(year - CONFIG.firstYear) * CONFIG.pitch}vh`}
+            >
+              <span class="tl-num">{year}</span>
+              <span class="tl-tick" aria-hidden="true" />
+              {NOTES[year] && <span class="tl-note">{NOTES[year]}</span>}
+            </div>
+          ))
+        }
+      </div>
+    </div>
+
+    <!-- Overlays — revealed by stopTimelineAt(); positioned independently so each
+         project can land in a different place and size -->
+    <div class="tl-overlays">
+      <figure class="tl-card tl-card--winesmarts" data-overlay="winesmarts">
+        <div class="tl-thumb tl-thumb--warm" aria-hidden="true"></div>
+        <figcaption>
+          <h3>WineSmarts</h3>
+          <p>Design and branding for a game about wine knowledge.</p>
+        </figcaption>
+      </figure>
+
+      <figure class="tl-card tl-card--2011" data-overlay="sample-2011">
+        <div class="tl-thumb tl-thumb--cool" aria-hidden="true"></div>
+        <figcaption>
+          <h3>Placeholder project</h3>
+          <p>Lorem ipsum dolor sit amet, consectetur adipiscing.</p>
+        </figcaption>
+      </figure>
+    </div>
+  </div>
+</Chapter>
 
 <style>
-  .beats-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1.5rem;
+  /* ── Stage ─────────────────────────────────────────────────────────────── */
+  .tl-stage {
+    position: fixed;
+    inset: 0;
+    height: 100dvh; /* explicit — the parent's will-change:transform makes it the
+                       containing block for this fixed element, and it has no
+                       height of its own, so inset:0 alone would collapse to 0. */
+    /* Year colors the kit reads (resolved from here at compile time) */
+    --tl-year: rgba(255, 255, 255, 0.35);
+    --tl-year-active: #ffffff;
+    --tl-note: rgba(255, 255, 255, 0.8);
+    /* Where the vertical line sits */
+    --tl-line-x: 27%;
+    font-family: var(--font-sans);
+    color: var(--color-foreground);
+    pointer-events: none; /* purely presentational layer */
   }
 
-  /* Beat elements start visible in HTML (no-JS / pre-JS fallback).
-     The beats engine sets them to opacity:0 via fromTo() when it initialises,
-     then scrubs them to opacity:1 as the user scrolls through the beat window.
-     Reduced-motion branch jumps the timeline to progress=1 immediately. */
-  .beat-text {
-    font-family: var(--font-sans);
-    font-size: 2rem; /* 32px */
-    font-weight: 500; /* Futura PT medium */
-    color: var(--color-foreground); /* white */
+  /* ── Intro ─────────────────────────────────────────────────────────────── */
+  /* Wrapper owns vertical centering so the script can animate the inner
+     block's transform without fighting a centering transform. */
+  .tl-intro-wrap {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* vertical center */
+    align-items: flex-start;
+    padding-left: calc(var(--tl-line-x) + 2.5rem);
+    padding-right: 2rem;
+  }
+  .tl-intro {
+    max-width: 34em;
+  }
+  .tl-intro h2 {
+    font-size: clamp(2.25rem, 4.5vw, 3.25rem);
+    font-weight: 300;
+    margin: 0 0 0.6em;
+  }
+  .tl-intro p {
+    font-size: clamp(1.15rem, 2vw, 1.5rem);
+    font-weight: 300;
+    line-height: 1.45;
     margin: 0;
-    text-align: center;
-    max-width: 22em;
-    line-height: 1.3;
+    color: rgba(255, 255, 255, 0.92);
+  }
+
+  /* ── Tape viewport: the dissolve is a mask, so riders fade at the edges
+        with zero choreography ─────────────────────────────────────────────── */
+  .tl-viewport {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 6%,
+      black 22%,
+      black 80%,
+      transparent 96%
+    );
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      transparent 6%,
+      black 22%,
+      black 80%,
+      transparent 96%
+    );
+  }
+
+  .tl-tape {
+    position: absolute;
+    inset: 0 0 auto 0;
+    will-change: transform;
+  }
+
+  /* The line is its own element now — just viewport-tall, static once it's in.
+     Animate it independently with show("line")/hide("line"). It sits inside the
+     masked viewport, so its top/bottom ends dissolve like the years do.
+     It starts hidden so it can't appear before its entrance (e.g. during
+     Chapter 1); show("line") reveals it. */
+  .tl-line {
+    position: absolute;
+    left: var(--tl-line-x);
+    top: 0;
+    height: 100%; /* the viewport (= the stage height) */
+    width: 1px;
+    background: rgba(255, 255, 255, 0.45);
+    opacity: 0; /* ← hidden until show("line") */
+  }
+
+  /* ── Year rows (riders) ────────────────────────────────────────────────── */
+  .tl-year {
+    position: absolute;
+    left: 0;
+    right: 0;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+  }
+  .tl-num {
+    width: var(--tl-line-x);
+    text-align: right;
+    padding-right: 1.4rem;
+    box-sizing: border-box;
+    font-size: clamp(2rem, 3.4vw, 2.9rem);
+    font-weight: 300;
+    color: var(--tl-year);
+    font-variant-numeric: lining-nums tabular-nums;
+  }
+  .tl-tick {
+    width: 2px;
+    height: 1.6em;
+    margin-left: -1px; /* sit on the line */
+    background: var(--tl-year-active);
+    transform: scaleX(0); /* drawn in by stopTimelineAt() */
+    transform-origin: left center;
+  }
+  .tl-note {
+    padding-left: 1.6rem;
+    font-size: clamp(1rem, 1.6vw, 1.35rem);
+    font-weight: 300;
+    color: var(--tl-note);
+    max-width: 36em;
+  }
+
+  /* ── Overlays: each card is positioned independently, on purpose —
+        vary placement and size per project ─────────────────────────────────── */
+  .tl-overlays {
+    position: absolute;
+    inset: 0;
+  }
+  .tl-card {
+    position: absolute;
+    margin: 0;
+    background: #fff;
+    padding: 1rem 1rem 1.2rem;
+    box-shadow: 0 22px 48px -24px rgb(0 0 0 / 0.45);
+  }
+  .tl-card--winesmarts {
+    left: calc(var(--tl-line-x) + 4%);
+    top: 14%;
+    width: min(46%, 620px);
+  }
+  .tl-card--2011 {
+    left: calc(var(--tl-line-x) + 14%);
+    top: 30%;
+    width: min(34%, 460px);
+  }
+
+  .tl-thumb {
+    aspect-ratio: 3 / 2;
+    width: 100%;
+  }
+  /* Abstract placeholders — swap for real images when ready */
+  .tl-thumb--warm {
+    background:
+      radial-gradient(120% 90% at 75% 20%, #e7b98a 0%, transparent 45%),
+      linear-gradient(150deg, #c67a3e, #9c4a2a);
+  }
+  .tl-thumb--cool {
+    background:
+      radial-gradient(110% 85% at 30% 25%, #b9c8d2 0%, transparent 50%),
+      linear-gradient(160deg, #7c93a0, #4d616d);
+  }
+
+  .tl-card h3 {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    font-size: clamp(1.3rem, 2.2vw, 1.7rem);
+    color: var(--color-ink);
+    margin: 0.9rem 0 0.2rem;
+  }
+  .tl-card figcaption p {
+    font-family: var(--font-serif);
+    font-size: clamp(0.95rem, 1.5vw, 1.1rem);
+    color: #7c93a0;
+    margin: 0;
   }
 </style>

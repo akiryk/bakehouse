@@ -184,28 +184,68 @@ chapter is showing (the mat persists in `Base.astro`).
 
 ### Structure
 
-The mat is a `position: fixed; inset: 0` `<div>` (full viewport). Its visible shape and
-margins come entirely from a `clip-path: polygon()` whose eight vertices are placed inward
-from the div edges by the `--mat-safe-inset-*` CSS tokens. The div itself has no inset
-gutter — that concern belongs to the vertex homes, not the container.
+The mat is a `position: fixed; inset: 0` `<div>` (full viewport). Its visible shape
+comes from `clip-path: path()` — a cubic-bezier path emitted by `octagon.ts` every
+animation frame. The div itself has no inset gutter; all margins come from where the
+vertex homes are placed.
+
+### clip-path: path() — why and the key traps
+
+`polygon()` supports only straight lines. Curves need `path()`, which accepts SVG cubic
+beziers (`C`). Since `octagon.ts` already rewrites the clip string every frame for the
+wobble, switching its _output_ from `polygon()` to `path()` is a contained change.
+
+Two traps to keep in mind:
+
+- **`path()` is px-only** — no `%`, no `calc()`, no `var()`. Every coordinate must be a
+  computed px number. Responsiveness comes from recomputing on resize, not from the
+  browser resolving `%`.
+- **Don't parse custom-property strings for px values.** `getComputedStyle` returns the
+  _unresolved_ string for a custom property (e.g. a `clamp()` expression), not px.
+  Instead, measure by setting a probe `<div>`'s dimensions to the CSS vars and reading
+  `getBoundingClientRect()` — letting the browser resolve the expression for you.
+
+`Base.astro` keeps a `polygon()` static clip (using CSS vars) for the SSR / pre-JS
+instant. Once `octagon.ts` runs it overwrites with the `path()` — the shapes are
+identical, so there is no visible jump.
 
 ### Safe-area model
 
-Each vertex home sits inset from its nearest edge by a side-specific token:
+Each vertex home sits inset from its nearest edge by a side-specific token. In px
+(after measurement at init / resize):
 
 ```
-upperLeft:   ( var(--mat-safe-inset-x),               var(--mat-safe-inset-top)    )
-upperCenter: ( 66%,                                    var(--mat-safe-inset-top)    )
-upperRight:  ( calc(100% - var(--mat-safe-inset-x)),   var(--mat-safe-inset-top)    )
-centerRight: ( calc(100% - var(--mat-safe-inset-x)),   50%                          )
-lowerRight:  ( calc(100% - var(--mat-safe-inset-x)),   calc(100% - var(--mat-safe-inset-bottom)) )
-lowerCenter: ( 33%,                                    calc(100% - var(--mat-safe-inset-bottom)) )
-lowerLeft:   ( var(--mat-safe-inset-x),               calc(100% - var(--mat-safe-inset-bottom)) )
-centerLeft:  ( var(--mat-safe-inset-x),               50%                          )
+upperLeft:   ( insetX,      insetTop    )
+upperCenter: ( W × 0.66,   insetTop    )
+upperRight:  ( W − insetX,  insetTop    )
+centerRight: ( W − insetX,  H × 0.5   )
+lowerRight:  ( W − insetX,  H − insetBottom )
+lowerCenter: ( W × 0.33,   H − insetBottom )
+lowerLeft:   ( insetX,      H − insetBottom )
+centerLeft:  ( insetX,      H × 0.5   )
 ```
 
 **Invariant:** every `--mat-safe-inset-*` value must be >= `motionRadius`. Violation
 causes edge clipping; `octagon.ts` logs a warning at init.
+
+### Curved edges — `edgeCurve`
+
+The four **center points** (upperCenter, centerRight, lowerCenter, centerLeft) have
+symmetric, edge-parallel bezier handles. The **corners have none** (sharp joins).
+
+- **Handle direction:** top/bottom centers → horizontal; left/right centers → vertical.
+- **Handle length:** `edgeCurve × relevant-side` — width for top/bottom, height for
+  left/right. Recomputed on resize.
+- **Rigid with the vertex:** handles are offset from the center point's current position
+  (home + wobble dx/dy), so they translate exactly with the vertex and never rotate or
+  scale relative to it.
+- **Corner control points** = the corner vertex itself → zero tangent at corners → sharp join.
+
+The single dial is `edgeCurve` in `config/motion.ts` (default `0.035` = 3.5%).
+
+Each edge becomes two cubic segments: `corner → C corner cp2=center−handle center` and
+`center → C cp1=center+handle corner corner`. This gives a smooth bow peaking at the
+center that straightens toward the corners.
 
 ### Animation model (random-circle wander)
 
@@ -213,9 +253,12 @@ Each vertex wanders continuously within a circle of radius `motionRadius` around
 Duration per leg varies by ±`LEG_SPEED_VARIANCE`; vertices start staggered so they are
 always out of phase.
 
-**Reduced motion:** `gsap.matchMedia()` skips all tweens; vertices hold their home positions.
+**Reduced motion:** `gsap.matchMedia()` skips all tweens; the rest-position `path()` is
+written once at init and recomputed on resize.
 
-### One source, no drift
+### Measurement & resize (perf)
 
-`octagon.ts` reads `--mat-safe-inset-*` via `getComputedStyle` at init. The static
-clip-path in `Base.astro` uses the same tokens via `var()`. Both resolve identically.
+`octagon.ts` caches `W`, `H`, the resolved inset px values, and the computed handle lengths.
+The per-frame wobble tick reads only from the cache — no `getBoundingClientRect` per frame
+(that forces a layout every frame → jank). On resize (debounced 100 ms) the cache is
+refreshed and the path redrawn.
