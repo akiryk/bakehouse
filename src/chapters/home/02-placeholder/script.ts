@@ -1,17 +1,22 @@
 /**
  * Chapter 2 — THE TWEAK FILE.
  *
- * Everything about how this chapter feels lives here: the tape geometry, the
- * year annotations, and the storyboard. Edit numbers, save, scroll. Nothing
- * else needs touching — Content.astro renders the years from this file, and
- * motion.ts compiles the storyboard.
+ * The storyboard is a flat sequence. Each entry starts relative to the
+ * PREVIOUS entry:
+ *   sinceStart(n, ...moments)  → n beats after the previous entry STARTED
+ *   sinceEnd(n, ...moments)    → n beats after the previous entry ENDED
+ *                                (bare sinceEnd(...) = the moment it ends)
+ * Moments in the same entry start together. Negative gaps are allowed.
  *
  * Units: beats. 1 beat = CONFIG.vhPerBeat viewport-heights of scroll.
- * Add ?beats to the URL for a live playhead/year readout while tuning.
+ * Add ?beats to the URL for the live HUD *and* a console table of the full
+ * resolved schedule (absolute start/end of every moment — the ground truth).
  */
 
 import {
   defineScript,
+  sinceStart,
+  sinceEnd,
   show,
   hide,
   hold,
@@ -19,7 +24,7 @@ import {
   travel,
   stopTimelineAt,
   morph,
-} from "../../../motion/timeline-kit";
+} from "@motion/timeline-kit";
 
 // ─── Geometry & feel ──────────────────────────────────────────────────────────
 
@@ -52,70 +57,66 @@ export const NOTES: Record<number, string> = {
 };
 
 // ─── The storyboard ───────────────────────────────────────────────────────────
-// Moments run in order. `withPrevious: true` starts a moment alongside the one
-// before it; `offset` (beats) nudges it. stopTimelineAt() handles the whole
-// stop-highlight-reveal-dwell-release arc in one call.
 
 export const SCRIPT = defineScript({
   config: CONFIG,
-  moments: [
-    // 1 — a breath after the chapter arrives, THEN the intro fades in
-    //     (centered) and dwells long enough to read
-    hold(1), //  ← breath before it appears (raise to delay the intro)
-    show("intro", {
-      // animate intro from a to b over n beats. And a beat = 100vh.
-      // So show "intro" over n lengths of the browser viewport.
-      over: 3,
-      from: { opacity: 0, y: 300 },
-      ease: "sine.out",
-    }),
-    hold(5), //  ← how long the intro sits still (raise to linger longer)
+  sequence: [
+    // A one-beat breath, then the intro fades up (centered) —
+    // a beat = 100vh, so this rise plays out over 3 viewport-lengths of scroll.
+    sinceStart(
+      5,
+      show("intro", {
+        over: 3,
+        from: { opacity: 0, y: 300 },
+        ease: "sine.out",
+      }),
+    ),
 
-    // The line rises while the intro remains fully visible.
-    show("line", {
-      over: 1.5,
-      from: { opacity: 1, y: "100vh" },
-      to: { opacity: 1, y: 0 },
-      ease: "power2.out",
-    }),
+    // 5 beats after the intro settles, the line rises while the intro
+    // remains fully visible.
+    sinceEnd(
+      5,
+      show("line", {
+        over: 1.5,
+        from: { opacity: 1, y: "100vh" },
+        to: { opacity: 1, y: 0 },
+        ease: "power2.out",
+      }),
+    ),
 
-    // The years begin rising while the intro is still visible.
-    enterTape({
-      at: 1995,
-      over: 4,
-      fromOffset: 240,
-      fromOpacity: 1,
-      toOpacity: 1,
-      ease: "power3.out",
-    }),
+    // The moment the line settles, the years begin rising — intro still up.
+    sinceEnd(
+      enterTape({
+        at: 1995,
+        over: 4,
+        fromOffset: 240,
+        fromOpacity: 1,
+        toOpacity: 1,
+        ease: "power3.out",
+      }),
+    ),
 
-    // Fade the intro during the year entrance.
-    // Because this follows enterTape(), withPrevious refers to enterTape().
-    hide("intro", {
-      over: 1.5,
-      withPrevious: true,
-      offset: 2,
-    }),
+    // 2 beats into the years' rise, the intro fades away.
+    sinceStart(2, hide("intro", { over: 1.5 })),
 
-    // The tape has arrived at 1995. Pause there.
-    stopTimelineAt(1995, {
-      dwell: 4,
-    }),
+    // The tape arrives at 1995 as the intro finishes leaving (+0.5) — pause
+    // there. (Check the ?beats table: this lands exactly at enterTape's end.)
+    sinceEnd(0.5, stopTimelineAt(1995, { dwell: 4 })),
 
-    // 5 — years tick by; 1995 and 1997 notes ride past
-    travel({ to: 2002, over: 3.5 }),
+    // Years tick by; the 1995 and 1997 notes ride past.
+    sinceEnd(travel({ to: 2002, over: 3.5 })),
 
-    // 4 — first project stop: WineSmarts at 2002
-    stopTimelineAt(2002, { dwell: 8, reveal: ["winesmarts"] }),
+    // First project stop: WineSmarts at 2002.
+    sinceEnd(stopTimelineAt(2002, { dwell: 8, reveal: ["winesmarts"] })),
 
-    // a quick zip forward…
-    travel({ to: 2010, over: 1.25, ease: "power1.inOut" }),
+    // A quick zip forward…
+    sinceEnd(travel({ to: 2010, over: 1.25, ease: "power1.inOut" })),
 
-    // …into a second stop, demonstrating a different reveal position/size
-    stopTimelineAt(2011, { dwell: 2.5, reveal: ["sample-2011"] }),
+    // …into a second stop, demonstrating a different reveal position/size.
+    sinceEnd(stopTimelineAt(2011, { dwell: 2.5, reveal: ["sample-2011"] })),
 
-    // cruise to the present and rest
-    travel({ to: 2026, over: 4 }),
-    hold(1),
+    // Cruise to the present, then a beat of rest to close the chapter.
+    sinceEnd(travel({ to: 2026, over: 4 })),
+    sinceEnd(hold(1)),
   ],
 });

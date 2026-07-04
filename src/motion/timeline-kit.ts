@@ -1,9 +1,9 @@
 /**
  * timeline-kit — authoring layer for scroll-driven timeline chapters.
  *
- * You write a SCRIPT: an ordered list of "moments" in the chapter's script.ts.
- * This kit compiles the script into one GSAP timeline; the engine scrubs it.
- * You think in YEARS and BEATS — never timeline-seconds, never pixels.
+ * You write a SCRIPT in the chapter's script.ts. This kit compiles it into one
+ * GSAP timeline; the engine scrubs it. You think in YEARS and BEATS — never
+ * timeline-seconds, never pixels.
  *
  * UNITS
  *   beat   — the scroll unit. 1 beat = `vhPerBeat` viewport-heights of scroll.
@@ -13,23 +13,32 @@
  *            viewport height (0 = top, 0.5 = center, 1 = bottom).
  *
  * ELEMENT ROLES the kit looks for inside the chapter container:
- *   [data-el="intro"]     independent intro block (any named block works: show/hide by id)
- *   [data-el="tape"]      the moving tape — the line + year rows ride it
+ *   [data-el="intro"]     independent block (any named block works: show/hide by id)
+ *   [data-el="line"]      the vertical line — its own element, driven via show/hide
+ *   [data-el="tape"]      the year strip — driven via enterTape/travel/stopTimelineAt
  *   [data-year="1996"]    a year row on the tape, containing .tl-num and .tl-tick
- *   [data-overlay="xyz"]  independent overlay content (cards/images), hidden until revealed
+ *   [data-overlay="xyz"]  independent overlay content, hidden until revealed
  *
- * MOMENTS (see the factory functions at the bottom)
- *   show(id)/hide(id)  fade a [data-el=id] block in/out (fade + small vertical move)
- *   hold(beats)        dead air — nothing moves for a stretch of scroll
- *   enterTape({at})    tape rises into view with `at` landing on the anchor
- *   travel({to})       tape moves continuously until `to` is on the anchor
- *   stopTimelineAt(year,{...}) decelerate into a year, tick + brighten it, reveal
- *                      overlays, dwell, then auto-release as travel resumes
- *   morph({from,to})   midground color morph between two palette tokens
+ * MOMENTS (the verbs — see factories at the bottom)
+ *   show(id)/hide(id)            reveal / dismiss a [data-el] block
+ *   hold(beats)                  dead air
+ *   enterTape({at})              year strip rises in, `at` landing on the anchor
+ *   travel({to})                 strip moves continuously until `to` is anchored
+ *   stopTimelineAt(year, {...})  decelerate in, tick + brighten, reveal overlays,
+ *                                dwell, auto-release as travel resumes
+ *   morph({from,to})             midground color morph between palette tokens
  *
- * SEQUENCING: moments run one after another. Set `withPrevious: true` to start
- * a moment at the same time as the previous one, and/or `offset: n` (beats,
- * may be negative) to nudge it. That's the whole concurrency model.
+ * SEQUENCING — the `sequence` style (preferred):
+ *   A flat list of entries. Each entry starts relative to the PREVIOUS entry:
+ *     sinceStart(n, ...moments)  → n beats after the previous entry STARTED
+ *     sinceEnd(n, ...moments)    → n beats after the previous entry ENDED
+ *                                  (bare sinceEnd(...) = the moment it ends)
+ *   Moments in the same entry start together. An entry's "end" is the end of
+ *   its longest moment. Negative gaps are allowed. With ?beats in the URL the
+ *   full resolved schedule (absolute start/end of everything) is printed as a
+ *   console table — that's the ground truth while tuning.
+ *
+ *   The legacy `moments` style (withPrevious/offset) still compiles.
  */
 
 import gsap from "gsap";
@@ -50,9 +59,9 @@ export interface TimelineConfig {
 }
 
 interface MomentBase {
-  /** start together with the previous moment instead of after it */
+  /** legacy style: start together with the previous moment */
   withPrevious?: boolean;
-  /** nudge the start by this many beats (negative = earlier) */
+  /** legacy style: nudge the start by this many beats (negative = earlier) */
   offset?: number;
 }
 
@@ -98,9 +107,50 @@ export type Moment = MomentBase &
     | { kind: "morph"; from: string; to: string; over: number }
   );
 
+// ─── Sequence entries (the flat, explicit-timing authoring style) ────────────
+
+export interface SequenceEntry {
+  anchor: "start" | "end";
+  gap: number;
+  moments: Moment[];
+}
+
+function makeEntry(
+  anchor: "start" | "end",
+  first: number | Moment,
+  rest: Moment[],
+): SequenceEntry {
+  return typeof first === "number"
+    ? { anchor, gap: first, moments: rest }
+    : { anchor, gap: 0, moments: [first, ...rest] };
+}
+
+/** Start `gap` beats after the PREVIOUS entry STARTED. */
+export function sinceStart(gap: number, ...moments: Moment[]): SequenceEntry;
+export function sinceStart(...moments: Moment[]): SequenceEntry;
+export function sinceStart(
+  first: number | Moment,
+  ...rest: Moment[]
+): SequenceEntry {
+  return makeEntry("start", first, rest);
+}
+
+/** Start `gap` beats after the PREVIOUS entry ENDED (bare = the moment it ends). */
+export function sinceEnd(gap: number, ...moments: Moment[]): SequenceEntry;
+export function sinceEnd(...moments: Moment[]): SequenceEntry;
+export function sinceEnd(
+  first: number | Moment,
+  ...rest: Moment[]
+): SequenceEntry {
+  return makeEntry("end", first, rest);
+}
+
 export interface TimelineScript {
   config: TimelineConfig;
-  moments: Moment[];
+  /** preferred authoring style */
+  sequence?: SequenceEntry[];
+  /** legacy authoring style — still compiles */
+  moments?: Moment[];
   /** computed by defineScript — total beats of the whole script */
   totalBeats: number;
 }
@@ -137,6 +187,7 @@ function durationOf(m: Moment, tapeYear: number | null): number {
   }
 }
 
+/** Legacy walk for the `moments` style (withPrevious/offset). */
 function walk(moments: Moment[]): { placed: Placed[]; total: number } {
   let cursor = 0; // end of the sequence so far
   let prevStart = 0;
@@ -161,12 +212,66 @@ function walk(moments: Moment[]): { placed: Placed[]; total: number } {
   return { placed, total: cursor };
 }
 
-/** Wrap a config + moments into a script, computing its total length. */
+/** Walk for the `sequence` style (sinceStart/sinceEnd). */
+function walkSequence(entries: SequenceEntry[]): {
+  placed: Placed[];
+  total: number;
+} {
+  const placed: Placed[] = [];
+  let prevStart = 0;
+  let prevEnd = 0;
+  let tapeYear: number | null = null;
+  let total = 0;
+
+  for (const entry of entries) {
+    const base = entry.anchor === "start" ? prevStart : prevEnd;
+    const start = Math.max(0, base + entry.gap);
+    let entryEnd = start;
+
+    for (const m of entry.moments) {
+      const dur = durationOf(m, tapeYear);
+      if (m.kind === "enterTape") tapeYear = m.at;
+      if (m.kind === "travel") tapeYear = m.to;
+      if (m.kind === "stopTimelineAt") tapeYear = m.year;
+      placed.push({ m, start, dur });
+      entryEnd = Math.max(entryEnd, start + dur);
+    }
+
+    prevStart = start;
+    prevEnd = entryEnd;
+    total = Math.max(total, entryEnd);
+  }
+
+  return { placed, total };
+}
+
+/** Resolve either authoring style to placed moments. */
+function resolveScript(script: {
+  sequence?: SequenceEntry[];
+  moments?: Moment[];
+}): { placed: Placed[]; total: number } {
+  return script.sequence
+    ? walkSequence(script.sequence)
+    : walk(script.moments ?? []);
+}
+
+/** Every moment in the script, in order, regardless of authoring style. */
+function allMoments(script: {
+  sequence?: SequenceEntry[];
+  moments?: Moment[];
+}): Moment[] {
+  return script.sequence
+    ? script.sequence.flatMap((e) => e.moments)
+    : (script.moments ?? []);
+}
+
+/** Wrap a config + storyboard into a script, computing its total length. */
 export function defineScript(input: {
   config: TimelineConfig;
-  moments: Moment[];
+  sequence?: SequenceEntry[];
+  moments?: Moment[];
 }): TimelineScript {
-  return { ...input, totalBeats: walk(input.moments).total };
+  return { ...input, totalBeats: resolveScript(input).total };
 }
 
 // ─── Compiler ─────────────────────────────────────────────────────────────────
@@ -183,6 +288,24 @@ function resolveStageColor(
 ): string {
   const v = getComputedStyle(stage).getPropertyValue(prop).trim();
   return v || fallback;
+}
+
+function describeMoment(m: Moment): string {
+  switch (m.kind) {
+    case "show":
+    case "hide":
+      return `${m.kind} ${m.id}`;
+    case "hold":
+      return "hold";
+    case "enterTape":
+      return `enterTape @ ${m.at}`;
+    case "travel":
+      return `travel → ${m.to}`;
+    case "stopTimelineAt":
+      return `stop @ ${m.year}`;
+    case "morph":
+      return `morph ${m.from} → ${m.to}`;
+  }
 }
 
 /**
@@ -203,7 +326,8 @@ export function compile(
     return gsap.timeline();
   }
 
-  const firstEnterTape = script.moments.find(
+  // Park the tape at its pre-entrance position (works for both script styles).
+  const firstEnterTape = allMoments(script).find(
     (m): m is Extract<Moment, { kind: "enterTape" }> => m.kind === "enterTape",
   );
 
@@ -232,8 +356,37 @@ export function compile(
   );
   gsap.set(overlays, { opacity: 0, y: 28 });
 
+  const { placed } = resolveScript(script);
+
+  // ?beats: print the resolved schedule — absolute start/end of every moment.
+  if (
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).has("beats")
+  ) {
+    console.table(
+      placed.map(({ m, start, dur }) => ({
+        start: +start.toFixed(2),
+        end: +(start + dur).toFixed(2),
+        what: describeMoment(m),
+      })),
+    );
+  }
+
+  // Pre-hide every element that will be shown via a `show` moment.
+  // GSAP's fromTo has immediateRender:false by default — the `from` state is NOT
+  // applied until the playhead reaches that position. Before that, the element is
+  // in its HTML/CSS state (visible). This gsap.set fires immediately when compile()
+  // is called (before any ScrollTrigger), so elements start hidden and only become
+  // visible when the scrub reaches their moment's start position.
+  // Same pattern as the overlays block above.
+  for (const { m } of placed) {
+    if (m.kind === "show") {
+      const target = el(`[data-el='${m.id}']`);
+      if (target) gsap.set(target, { opacity: 0, y: 24, ...m.from });
+    }
+  }
+
   const tl = gsap.timeline();
-  const { placed } = walk(script.moments);
   let tapeYear: number | null = null;
 
   for (const { m, start, dur } of placed) {
@@ -244,11 +397,7 @@ export function compile(
 
         tl.fromTo(
           target,
-          {
-            opacity: 0,
-            y: 24,
-            ...m.from,
-          },
+          { opacity: 0, y: 24, ...m.from },
           {
             opacity: 1,
             y: 0,
@@ -414,9 +563,9 @@ export function compile(
 }
 
 // ─── Debug HUD (?beats) ───────────────────────────────────────────────────────
-// Append ?beats to the URL to get a live readout of the playhead (in beats)
-// and the year currently on the anchor — makes correlating scroll position to
-// script positions much easier while tuning.
+// Append ?beats to the URL for a live readout of the playhead (in beats) and
+// the year currently on the anchor. The full resolved schedule is also printed
+// to the console as a table (see compile()).
 
 function attachDebugHud(
   container: HTMLElement,

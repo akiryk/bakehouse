@@ -115,6 +115,23 @@ export function initScrollEngine(
 
   const { slots, totalVH } = computeSlots(chapterMotions);
 
+  // Dev-only beat ruler — fully excluded from production bundles via dynamic
+  // import inside the DEV guard (Vite replaces import.meta.env.DEV with false
+  // at build time and tree-shakes the branch). Initialized immediately after
+  // slots so the ruler reads the engine's timing model, not its own.
+  if (import.meta.env.DEV) {
+    import("./beat-ruler").then(({ initBeatRuler }) => {
+      initBeatRuler(
+        slots.map((s, i) => ({
+          ...s,
+          chapterId: config.chapters[i]?.id ?? `ch${i + 1}`,
+        })),
+        totalVH,
+        DEFAULT_BEAT_VH,
+      );
+    });
+  }
+
   // Spacer gives the page real scroll height (fixed layers contribute none).
   const spacer = document.createElement("div");
   spacer.style.cssText = `height:${totalVH}vh;pointer-events:none;`;
