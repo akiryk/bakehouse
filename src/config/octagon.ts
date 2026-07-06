@@ -18,15 +18,3 @@ export const octagonShape: OctagonMotion = {
   defaultSpeed: 4, // a smaller number will be faster (1 = fast; 10 = medium)
   edgeCurve: 0.035, // 3.5% of side → ~35px handles at 1000 px wide, ~24.5 px tall
 };
-
-// ─── Scroll ───────────────────────────────────────────────────────────────────
-
-export const motion = {
-  scroll: {
-    flyUp: {
-      ease: "power2.in",
-      distance: 110, // vh — how far the paper travels off-screen
-      duration: 1, // scroll-progress units (0-1)
-    },
-  },
-};

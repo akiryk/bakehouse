@@ -31,7 +31,7 @@
  */
 
 import gsap from "gsap";
-import { octagonShape } from "../config/motion";
+import { octagonShape } from "../config/octagon";
 
 // ─── Tunable constants ────────────────────────────────────────────────────────
 

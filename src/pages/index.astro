@@ -1,19 +1,34 @@
 ---
 import Base from "../layouts/Base.astro";
-import IntroContent from "../chapters/home/01-intro/Content.astro";
-import PlaceholderContent from "../chapters/home/02-placeholder/Content.astro";
+import IntroContent from "../chapters/home/intro/Content.astro";
+import ServicesContent from "../chapters/home/services/Content.astro";
+import TimelineContent from "../chapters/home/timeline/Content.astro";
 ---
 
 <Base>
   <IntroContent />
-  <PlaceholderContent />
+  <ServicesContent />
+  <TimelineContent />
 </Base>
 
 <script>
   import { initScrollEngine } from "../motion/engine";
   import { pages } from "../config/pages";
-  import introMotion from "../chapters/home/01-intro/motion";
-  import placeholderMotion from "../chapters/home/02-placeholder/motion";
+  import introMotion from "../chapters/home/intro/motion";
+  import servicesMotion from "../chapters/home/services/motion";
+  import timelineMotion from "../chapters/home/timeline/motion";
 
-  initScrollEngine(pages.home, [introMotion, placeholderMotion]);
+  const model = initScrollEngine(pages.home, [
+    introMotion,
+    servicesMotion,
+    timelineMotion,
+  ]);
+
+  if (import.meta.env.DEV && model) {
+    // Expose for console inspection: __beatModel.chapters[1].schedule
+    (window as any).__beatModel = model;
+    import("../dev/beat-ruler").then(({ initBeatRuler }) =>
+      initBeatRuler(model),
+    );
+  }
 </script>

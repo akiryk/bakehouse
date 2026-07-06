@@ -13,6 +13,7 @@
    these palette stops. Add new palette entries here; reference them in pages.ts. */
 :root {
   --midground-tan: #cfc6b6; /* warm tan — the default/initial mat color */
+  --midground-sage: #d9dccc; /* muted sage — shown during/after intro fly-away */
   --midground-slate: #8a9ba5; /* cool blue-grey */
   --midground-slate-deep: #8a9ba5; /* darker blue-grey — chapter 2 beat 2 target */
 }
@@ -45,6 +46,7 @@
   --color-ink: #79530b; /* body + heading text (warm brown) */
 
   /* TBD placeholders -- provisional values, tune against the design */
+  --color-caption: #7c93a0; /* muted blue-grey for captions and secondary card text */
   --color-link: #8a8278; /* muted links */
   --color-accent: #b8a99a; /* color dots / nav accents */
   --color-nav-text: var(
@@ -55,6 +57,24 @@
   --font-serif:
     "adobe-caslon-pro", "Big Caslon", "Hoefler Text", Georgia, serif;
   --font-sans: "futura-pt", "Futura", "Century Gothic", sans-serif;
+}
+
+/* Chapter stacking — earlier chapters sit above later ones so fly-aways
+   reveal what's beneath. Extend if more than 5 chapters are added. */
+.foreground-stage > :nth-child(1) {
+  z-index: 9;
+}
+.foreground-stage > :nth-child(2) {
+  z-index: 8;
+}
+.foreground-stage > :nth-child(3) {
+  z-index: 7;
+}
+.foreground-stage > :nth-child(4) {
+  z-index: 6;
+}
+.foreground-stage > :nth-child(5) {
+  z-index: 5;
 }
 
 /* Base styles */

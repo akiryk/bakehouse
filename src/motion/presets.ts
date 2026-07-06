@@ -9,7 +9,7 @@
  *   tl.to(el, shiftUp(), "<");                     // shift while next reveals
  */
 import "gsap";
-import { motion as cfg } from "../config/motion";
+import { scroll as cfg } from "../config/scroll";
 
 export type MotionVars = gsap.TweenVars;
 
@@ -18,8 +18,8 @@ export type MotionVars = gsap.TweenVars;
 /** Default paper exit: slow lift then rapid acceleration off the top. */
 export function flyUpAccelerate(overrides?: MotionVars): MotionVars {
   return {
-    y: `-${cfg.scroll.flyUp.distance}vh`,
-    ease: cfg.scroll.flyUp.ease,
+    y: `-${cfg.flyUp.distance}vh`,
+    ease: cfg.flyUp.ease,
     ...overrides,
   };
 }

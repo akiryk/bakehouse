@@ -42,6 +42,7 @@
  */
 
 import gsap from "gsap";
+import type { ScheduledEvent, ChapterBeats } from "./beat-model";
 
 // ─── Script types ─────────────────────────────────────────────────────────────
 
@@ -52,8 +53,6 @@ export interface TimelineConfig {
   pitch: number;
   /** where the current year sits: fraction of viewport height (0.5 = center) */
   anchor: number;
-  /** scroll feel: how many vh of scrolling one beat represents */
-  vhPerBeat: number;
   /** how far below its resting spot the tape starts, in vh (default 100) */
   enterFrom?: number;
 }
@@ -95,8 +94,8 @@ export type Moment = MomentBase &
         dwell: number;
         /** beats to decelerate into the year if not already there (default 0.75) */
         approach?: number;
-        /** [data-overlay] ids to reveal at the stop */
-        reveal?: string[];
+        /** [data-overlay] ids or per-overlay RevealSpec objects */
+        reveal?: (string | RevealSpec)[];
         /** beats each reveal takes (default 0.6) */
         revealOver?: number;
         /** don't auto-hide the reveals when the tape resumes */
@@ -168,6 +167,26 @@ type ShowTweenVars = {
   opacity?: number;
   y?: number | string;
 };
+
+/**
+ * Per-overlay reveal animation spec. Use instead of a plain string id when
+ * you need control over how the overlay enters.
+ *
+ * @example
+ *   reveal: [{ id: "winesmarts", from: { opacity: 0, x: 60, y: 0 }, ease: "power1.out" }]
+ */
+export interface RevealSpec {
+  /** [data-overlay] id */
+  id: string;
+  /** Initial hidden state. Default: { opacity: 0, y: 28 } */
+  from?: gsap.TweenVars;
+  /** Visible-state overrides, merged into { opacity: 1, y: 0 }. */
+  to?: gsap.TweenVars;
+  /** Duration in beats. Overrides stopTimelineAt.revealOver for this overlay. */
+  over?: number;
+  /** Easing. Default: "power2.out" */
+  ease?: string;
+}
 
 function durationOf(m: Moment, tapeYear: number | null): number {
   switch (m.kind) {
@@ -265,6 +284,28 @@ function allMoments(script: {
     : (script.moments ?? []);
 }
 
+/**
+ * Resolve a compiled script to its flat event schedule.
+ *
+ * Reuses the existing moment walk and describeMoment — no new timing logic.
+ * Call this in a chapter's motion.ts and assign to ChapterMotion.schedule so
+ * the engine can include it in the BeatModel without reaching into script.ts.
+ *
+ * @example
+ *   schedule: resolveSchedule(SCRIPT)
+ */
+export function resolveSchedule(script: {
+  sequence?: SequenceEntry[];
+  moments?: Moment[];
+}): ScheduledEvent[] {
+  const { placed } = resolveScript(script);
+  return placed.map(({ m, start, dur }) => ({
+    startBeat: +start.toFixed(4),
+    endBeat: +(start + dur).toFixed(4),
+    label: describeMoment(m),
+  }));
+}
+
 /** Wrap a config + storyboard into a script, computing its total length. */
 export function defineScript(input: {
   config: TimelineConfig;
@@ -308,13 +349,22 @@ function describeMoment(m: Moment): string {
   }
 }
 
+function normalizeReveal(r: string | RevealSpec): RevealSpec {
+  return typeof r === "string" ? { id: r } : r;
+}
+
 /**
  * Compile a script into a single GSAP timeline (in beat units).
  * The engine wraps it in a scrubbed ScrollTrigger — no engine changes needed.
+ *
+ * @param chapterBeats  When supplied by the engine, the ?beats table reads from
+ *                      it rather than recomputing the walk — proving the model
+ *                      is the single source of truth.
  */
 export function compile(
   container: HTMLElement,
   script: TimelineScript,
+  chapterBeats?: ChapterBeats,
 ): gsap.core.Timeline {
   const { config } = script;
   const el = <T extends HTMLElement>(sel: string) =>
@@ -350,7 +400,8 @@ export function compile(
   );
   const yearActive = resolveStageColor(stage, "--tl-year-active", "#ffffff");
 
-  // Overlays start hidden (set here, not in CSS, so no-JS still shows content).
+  // Overlays: all start hidden. Per-reveal custom `from` states are applied
+  // after resolveScript so the initial state matches the tween's from exactly.
   const overlays = Array.from(
     container.querySelectorAll<HTMLElement>("[data-overlay]"),
   );
@@ -358,18 +409,41 @@ export function compile(
 
   const { placed } = resolveScript(script);
 
+  // Override default hidden state for any overlay whose RevealSpec has a custom from.
+  for (const { m } of placed) {
+    if (m.kind !== "stopTimelineAt" || !m.reveal) continue;
+    for (const r of m.reveal) {
+      if (typeof r !== "string" && r.from) {
+        const overlay = el(`[data-overlay='${r.id}']`);
+        if (overlay) gsap.set(overlay, r.from);
+      }
+    }
+  }
+
   // ?beats: print the resolved schedule — absolute start/end of every moment.
+  // Reads from chapterBeats.schedule (the BeatModel) when supplied by the engine;
+  // falls back to the local walk so compile() stays usable standalone in tests.
   if (
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).has("beats")
   ) {
-    console.table(
-      placed.map(({ m, start, dur }) => ({
-        start: +start.toFixed(2),
-        end: +(start + dur).toFixed(2),
-        what: describeMoment(m),
-      })),
-    );
+    const rows = chapterBeats
+      ? chapterBeats.schedule.map((e) => ({
+          start: +e.startBeat.toFixed(2),
+          end: +e.endBeat.toFixed(2),
+          what: e.label,
+        }))
+      : placed.map(({ m, start, dur }) => ({
+          start: +start.toFixed(2),
+          end: +(start + dur).toFixed(2),
+          what: describeMoment(m),
+        }));
+    const label = chapterBeats
+      ? `[beats] chapter ${chapterBeats.id}`
+      : "[beats]";
+    console.group(label);
+    console.table(rows);
+    console.groupEnd();
   }
 
   // Pre-hide every element that will be shown via a `show` moment.
@@ -498,12 +572,20 @@ export function compile(
         if (num) tl.to(num, { color: yearActive, duration: 0.35 }, tArrive);
 
         // Reveals, slightly staggered.
-        (m.reveal ?? []).forEach((id, i) => {
-          const overlay = el(`[data-overlay='${id}']`);
+        (m.reveal ?? []).forEach((r, i) => {
+          const spec = normalizeReveal(r);
+          const overlay = el(`[data-overlay='${spec.id}']`);
           if (!overlay) return;
-          tl.to(
+          tl.fromTo(
             overlay,
-            { opacity: 1, y: 0, duration: revealOver, ease: "power2.out" },
+            spec.from ?? { opacity: 0, y: 28 },
+            {
+              opacity: 1,
+              y: 0,
+              ...spec.to,
+              duration: spec.over ?? revealOver,
+              ease: spec.ease ?? "power2.out",
+            },
             tArrive + 0.1 + i * 0.15,
           );
         });
@@ -511,8 +593,9 @@ export function compile(
         // Release: exits overlap the start of whatever comes next,
         // so content "animates away as the years begin scrolling again".
         if (!m.persist) {
-          (m.reveal ?? []).forEach((id) => {
-            const overlay = el(`[data-overlay='${id}']`);
+          (m.reveal ?? []).forEach((r) => {
+            const spec = normalizeReveal(r);
+            const overlay = el(`[data-overlay='${spec.id}']`);
             if (!overlay) return;
             tl.to(
               overlay,
@@ -558,7 +641,7 @@ export function compile(
     }
   }
 
-  attachDebugHud(container, tl, config);
+  attachDebugHud(container, tl, config, chapterBeats);
   return tl;
 }
 
@@ -571,6 +654,7 @@ function attachDebugHud(
   container: HTMLElement,
   tl: gsap.core.Timeline,
   cfg: TimelineConfig,
+  chapterBeats?: ChapterBeats,
 ): void {
   if (typeof window === "undefined") return;
   if (!new URLSearchParams(window.location.search).has("beats")) return;
@@ -589,9 +673,8 @@ function attachDebugHud(
       const yVh = Number(gsap.getProperty(tape, "y", "vh"));
       year = (cfg.firstYear + (cfg.anchor * 100 - yVh) / cfg.pitch).toFixed(1);
     }
-    hud.textContent = `beat ${tl.time().toFixed(2)} / ${tl
-      .duration()
-      .toFixed(2)}   year ${year}`;
+    const ch = chapterBeats ? ` [${chapterBeats.id}]` : "";
+    hud.textContent = `beat ${tl.time().toFixed(2)} / ${tl.duration().toFixed(2)}   year ${year}${ch}`;
   });
 }
 
@@ -667,7 +750,7 @@ export const stopTimelineAt = (
   o: {
     dwell?: number;
     approach?: number;
-    reveal?: string[];
+    reveal?: (string | RevealSpec)[];
     revealOver?: number;
     persist?: boolean;
     exitOver?: number;

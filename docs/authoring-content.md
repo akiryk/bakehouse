@@ -168,7 +168,7 @@ import type { ChapterMotion } from "../../../motion/engine";
 import { fadeInUpFrom, fadeInUpTo, shiftUp } from "../../../motion/presets";
 
 const motion: ChapterMotion = {
-  beatDurationVH: 150, // scroll travel allocated to the beats window
+  durationBeats: 1.5, // beats allocated to this chapter's dwell window
 
   beats(container) {
     const a = container.querySelector("[data-beat='a']");

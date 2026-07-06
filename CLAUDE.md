@@ -125,7 +125,7 @@ bakehouse/
 
 ---
 
-## Conventions
+## Conventions/Rules
 
 - **All visual values come from design tokens.** Colors, fonts, and type live in the
   Tailwind `@theme` block (`src/styles/global.css`); motion/behavior values (wobble
@@ -133,9 +133,32 @@ bakehouse/
   font, size, or timing in a component** — reach for a token (a Tailwind utility, a CSS
   variable, or a value from `motion.ts`). If a value affects how the site looks or feels,
   it belongs in a token home, not inline.
-- **Styling is Tailwind-first.** Use utilities for layout and positioning; reserve a scoped
-  `<style>` block (or `@apply`) only for what utilities express clumsily. Global resets live
-  in `global.css`, not in a component's styles.
+
+- **Styling is Tailwind-first. This is non-negotiable.** The default answer to every
+  styling question is a Tailwind utility class. A `<style>` block is a last resort, not a
+  first one. Writing custom CSS when a Tailwind utility exists is a mistake, even if the
+  CSS feels simpler in the moment.
+
+  **The only three acceptable reasons to write custom CSS:**
+
+  1. **Tailwind has no equivalent** — `clamp()`, `calc()` with CSS variables, `mask-image`,
+     `font-variant-numeric` with multiple values, `will-change`, `aspect-ratio` without a
+     matching token, GSAP-coordinated initial states that require a comment. Full stop.
+  2. **Tailwind can express it, but it would be clunky or confusing** — e.g. splitting an
+     element's closely related geometry across HTML and CSS when one property already
+     requires CSS anyway.
+  3. **There is a unique, compelling reason** — discussed and documented with an inline
+     comment directly above the declaration explaining why.
+
+  If you can't write that comment, the CSS doesn't belong there.
+
+- **No arbitrary Tailwind values.** Do not use bracket syntax like `mt-[43px]` or
+  `text-[#3a2b1c]`. If a value isn't in the token scale, the right answer is:
+  (a) add a named token to `global.css` or `motion.ts` and use that, or
+  (b) keep it in CSS with a comment under one of the three rules above.
+  CSS custom property references like `left-(--tl-line-x)` are **not** arbitrary values —
+  they reference named tokens and are fine.
+
 - **Native scroll + ScrollTrigger pinning.** No scroll-jacking, no fake scrollbars.
 - **Respect `prefers-reduced-motion`** via `gsap.matchMedia()`. Content is always
   reachable without motion; motion is a grace note.

@@ -28,34 +28,49 @@ paper is. (See `architecture.md` → the engine's contract.)
 
 For each chapter, in order:
 
-1. **Beats dwell** (`beatDurationVH` vh, default 100) — the chapter is visually
-   frontmost (fixed layers handle this implicitly); the beats timeline scrubs.
-2. **Fly-away** (`TRAVEL_PER_CHAPTER_VH` = 150 vh) — the paper element animates off the
+1. **Beats dwell** (`durationBeats` beats, default 1 if a `beats` function is present,
+   0 otherwise) — the chapter is visually frontmost (fixed layers handle this implicitly);
+   the beats timeline scrubs across this window.
+2. **Fly-away** (`chapterExitBeats` = 1.5 beats) — the paper element animates off the
    top; the next chapter is revealed beneath.
 
-Chapters with no beats skip phase 1; chapters with no `paper` motion skip phase 2.
+`durationBeats` is **in beats** — the same unit as everything else in a chapter's
+`motion.ts`. The engine converts to px internally; you never write raw vh or px here.
+Chapters with no `paper` motion skip phase 2; `durationBeats` still works without a
+`beats` function (useful to hold a chapter static for extra scroll distance).
+
+All ScrollTrigger start/end positions in the engine use arrow functions that compute
+px at trigger time (`() => slot.flyStart * window.innerHeight / 100`). GSAP does not
+parse `vh` in position strings — it strips the unit suffix and treats the number as raw
+px, which would make all scroll ranges wildly wrong.
 
 ---
 
 ## A chapter's motion: three tracks
 
-Each chapter's `motion.ts` can declare up to three tracks:
+Each chapter's `motion.ts` can declare up to three tracks plus a duration:
 
 - **paper** — the foreground rectangle's fly-away. Omit for paperless chapters or a
   chapter that stays on screen (e.g. the last chapter).
 - **content** — the markup inside the paper (optional; rides with paper by default).
 - **beats** — a function that builds a scrubbed GSAP timeline for intra-chapter reveals.
+- **durationBeats** — how many beats this chapter's dwell window occupies (in beats).
+  Default: 1 when `beats` is present, 0 otherwise. Works without a `beats` function.
+
+Always type the export as `ChapterMotion` so TypeScript surfaces all available fields:
 
 ```ts
+import type { ChapterMotion } from "../../../motion/engine";
 import { flyUpAccelerate } from "../../../motion/presets";
 
-export default {
+const motion: ChapterMotion = {
   paper: flyUpAccelerate(), // fly-away
+  durationBeats: 2, // hold for 2 beats before the fly-away begins
   // content: fadeIn({ delay: 0.2 }),   // optional content offset
 };
-```
 
-Or omit `motion.ts` fields entirely to inherit defaults.
+export default motion;
+```
 
 ---
 
@@ -93,7 +108,7 @@ beats(container) {
 
   return tl;
 },
-beatDurationVH: 150,   // scroll travel for the beats window
+durationBeats: 1.5,    // beats allocated to this chapter's dwell window
 ```
 
 Mark beat elements in the DOM with `data-beat="a"`, `data-beat="b"`, etc. so the

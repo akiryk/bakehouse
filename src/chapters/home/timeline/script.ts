@@ -38,9 +38,6 @@ export const CONFIG = {
   /** where the current year sits on screen (0 top … 1 bottom) */
   anchor: 0.5,
 
-  /** scroll feel — vh of real scrolling per beat. Raise to slow everything. */
-  vhPerBeat: 100,
-
   /** how far below its resting spot the tape enters from, in vh */
   enterFrom: 100,
 };
@@ -61,23 +58,20 @@ export const NOTES: Record<number, string> = {
 export const SCRIPT = defineScript({
   config: CONFIG,
   sequence: [
-    // A one-beat breath, then the intro fades up (centered) —
-    // a beat = 100vh, so this rise plays out over 3 viewport-lengths of scroll.
     sinceStart(
-      5,
+      0,
       show("intro", {
-        over: 3,
+        over: 0.5,
         from: { opacity: 0, y: 300 },
         ease: "sine.out",
       }),
     ),
 
-    // 5 beats after the intro settles, the line rises while the intro
-    // remains fully visible.
+    // sinceEnd means since the previous action ended
     sinceEnd(
-      5,
+      0.5,
       show("line", {
-        over: 1.5,
+        over: 0.5,
         from: { opacity: 1, y: "100vh" },
         to: { opacity: 1, y: 0 },
         ease: "power2.out",
@@ -85,29 +79,24 @@ export const SCRIPT = defineScript({
     ),
 
     // The moment the line settles, the years begin rising — intro still up.
-    sinceEnd(
-      enterTape({
-        at: 1995,
-        over: 4,
-        fromOffset: 240,
-        fromOpacity: 1,
-        toOpacity: 1,
-        ease: "power3.out",
-      }),
-    ),
+    sinceStart(0, travel({ to: 2000, over: 2 })),
 
-    // 2 beats into the years' rise, the intro fades away.
-    sinceStart(2, hide("intro", { over: 1.5 })),
-
-    // The tape arrives at 1995 as the intro finishes leaving (+0.5) — pause
-    // there. (Check the ?beats table: this lands exactly at enterTape's end.)
-    sinceEnd(0.5, stopTimelineAt(1995, { dwell: 4 })),
-
-    // Years tick by; the 1995 and 1997 notes ride past.
-    sinceEnd(travel({ to: 2002, over: 3.5 })),
+    sinceStart(0.5, hide("intro", { over: 0.5 })),
 
     // First project stop: WineSmarts at 2002.
-    sinceEnd(stopTimelineAt(2002, { dwell: 8, reveal: ["winesmarts"] })),
+    sinceEnd(
+      0.9,
+      stopTimelineAt(2000, {
+        dwell: 2,
+        reveal: [
+          {
+            id: "winesmarts",
+            from: { opacity: 0, y: 100 },
+            to: { y: 50 },
+          },
+        ],
+      }),
+    ),
 
     // A quick zip forward…
     sinceEnd(travel({ to: 2010, over: 1.25, ease: "power1.inOut" })),

@@ -22,12 +22,17 @@ export const pages: Record<string, PageConfig> = {
     chapters: [
       {
         id: "intro",
-        motionPath: "home/01-intro/motion",
+        motionPath: "home/intro/motion",
         midground: "--midground-tan",
       },
       {
-        id: "placeholder",
-        motionPath: "home/02-placeholder/motion",
+        id: "services",
+        motionPath: "home/services/motion",
+        midground: "--midground-sage",
+      },
+      {
+        id: "timeline",
+        motionPath: "home/timeline/motion",
         midground: "--midground-slate",
       },
     ],

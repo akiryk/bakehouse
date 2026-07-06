@@ -27,11 +27,26 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import type { PageConfig } from "../config/pages";
 import type { MotionVars } from "./presets";
+import {
+  vhPerBeat,
+  minBeatPx,
+  beatPx,
+  chapterExitBeats,
+  endRestBeats,
+} from "../config/scroll";
+import type { BeatModel, ChapterBeats, ScheduledEvent } from "./beat-model";
 
 gsap.registerPlugin(ScrollTrigger);
 
-/** A function that builds and returns a scrubbed beats timeline for a chapter. */
-export type BeatsFn = (container: HTMLElement) => gsap.core.Timeline;
+/**
+ * A function that builds and returns a scrubbed beats timeline for a chapter.
+ * The engine passes the chapter's ChapterBeats so the timeline can surface it
+ * to devtools (e.g. the ?beats HUD) without recomputing timing.
+ */
+export type BeatsFn = (
+  container: HTMLElement,
+  chapterBeats: ChapterBeats,
+) => gsap.core.Timeline;
 
 export interface ChapterMotion {
   /** Fly-away tween vars. Omit for chapters with no paper exit (e.g. paperless last chapter). */
@@ -40,18 +55,23 @@ export interface ChapterMotion {
   content?: MotionVars;
   /** Builds the scrubbed beats timeline. Receives the [data-chapter] element. */
   beats?: BeatsFn;
-  /** Scroll travel (vh) allocated to the beats dwell. Default: 100. */
-  beatDurationVH?: number;
+  /**
+   * How many beats this chapter's dwell window occupies.
+   * Works with or without a `beats` function — set this alone to hold the chapter
+   * static for extra scroll distance before the fly-away begins.
+   * Default when `beats` is present: 1. Default otherwise: 0.
+   */
+  durationBeats?: number;
+  /**
+   * Resolved event schedule for this chapter, built by resolveSchedule(SCRIPT)
+   * in the chapter's motion.ts. Omit for scriptless chapters.
+   * The engine includes this in the BeatModel without ever touching script.ts.
+   */
+  schedule?: ScheduledEvent[];
 }
 
-// ─── Scroll geometry constants ────────────────────────────────────────────────
+// ─── Scroll geometry ──────────────────────────────────────────────────────────
 
-/** vh of scroll travel for a chapter's fly-away */
-const TRAVEL_PER_CHAPTER_VH = 150;
-/** Default vh of scroll travel for a chapter's beats dwell */
-const DEFAULT_BEAT_VH = 100;
-/** Quiet rest at end of page */
-const REST_VH = 100;
 /** Default midground CSS property name */
 const DEFAULT_MIDGROUND = "--midground-tan";
 
@@ -70,26 +90,70 @@ interface ChapterSlot {
  * Compute each chapter's scroll slot.
  * Order: beats dwell first, then fly-away (so the chapter dwells while content
  * plays, then exits to reveal the next).
+ *
+ * Internally accumulates in beats, then converts to vh at the edge.
+ * All timing derives from config/scroll.ts — no independent vh literals.
  */
 function computeSlots(motions: ChapterMotion[]): {
   slots: ChapterSlot[];
   totalVH: number;
 } {
-  let cursor = 0;
+  let cursorBeats = 0;
   const slots: ChapterSlot[] = motions.map((m) => {
-    const beatDuration = m.beats ? (m.beatDurationVH ?? DEFAULT_BEAT_VH) : 0;
-    const beatStart = cursor;
-    const beatEnd = cursor + beatDuration;
-    cursor = beatEnd;
+    const beatDurationBeats = m.durationBeats ?? (m.beats ? 1 : 0);
 
-    const flyDuration = m.paper ? TRAVEL_PER_CHAPTER_VH : 0;
-    const flyStart = cursor;
-    const flyEnd = cursor + flyDuration;
-    cursor = flyEnd;
+    const beatStartBeats = cursorBeats;
+    const beatEndBeats = cursorBeats + beatDurationBeats;
+    cursorBeats = beatEndBeats;
 
-    return { beatStart, beatEnd, flyStart, flyEnd };
+    const flyDurationBeats = m.paper ? chapterExitBeats : 0;
+    const flyStartBeats = cursorBeats;
+    const flyEndBeats = cursorBeats + flyDurationBeats;
+    cursorBeats = flyEndBeats;
+
+    // Convert to vh for ScrollTrigger (beats × vhPerBeat).
+    return {
+      beatStart: beatStartBeats * vhPerBeat,
+      beatEnd: beatEndBeats * vhPerBeat,
+      flyStart: flyStartBeats * vhPerBeat,
+      flyEnd: flyEndBeats * vhPerBeat,
+    };
   });
-  return { slots, totalVH: cursor + REST_VH };
+  return { slots, totalVH: (cursorBeats + endRestBeats) * vhPerBeat };
+}
+
+// ─── Beat model ───────────────────────────────────────────────────────────────
+
+/**
+ * Assemble the public BeatModel from computed slots.
+ * All beat values are chapter-relative (each chapter starts at 0).
+ * Called once, immediately after computeSlots — before any GSAP setup.
+ */
+function buildModel(
+  slots: ChapterSlot[],
+  totalVH: number,
+  motions: ChapterMotion[],
+  chapterIds: string[],
+): BeatModel {
+  const chapters: ChapterBeats[] = slots.map((slot, i) => {
+    const beatWindowBeats = (slot.beatEnd - slot.beatStart) / vhPerBeat;
+    const flyBeats = (slot.flyEnd - slot.flyStart) / vhPerBeat;
+    return {
+      id: chapterIds[i] ?? `ch${i + 1}`,
+      index: i,
+      startBeat: 0,
+      endBeat: beatWindowBeats,
+      exitBeat: beatWindowBeats + flyBeats,
+      schedule: motions[i]?.schedule ?? [],
+      scrollVH: {
+        beatStart: slot.beatStart,
+        beatEnd: slot.beatEnd,
+        flyStart: slot.flyStart,
+        flyEnd: slot.flyEnd,
+      },
+    };
+  });
+  return { vhPerBeat, minBeatPx, beatPx, totalVH, chapters };
 }
 
 // ─── Color resolution ─────────────────────────────────────────────────────────
@@ -106,8 +170,8 @@ function resolveColor(prop: string): string {
 export function initScrollEngine(
   config: PageConfig,
   chapterMotions: ChapterMotion[],
-): void {
-  if (!config.useScrollEngine) return;
+): BeatModel | undefined {
+  if (!config.useScrollEngine) return undefined;
 
   const papers = Array.from(
     document.querySelectorAll<HTMLElement>("[data-chapter]"),
@@ -115,22 +179,14 @@ export function initScrollEngine(
 
   const { slots, totalVH } = computeSlots(chapterMotions);
 
-  // Dev-only beat ruler — fully excluded from production bundles via dynamic
-  // import inside the DEV guard (Vite replaces import.meta.env.DEV with false
-  // at build time and tree-shakes the branch). Initialized immediately after
-  // slots so the ruler reads the engine's timing model, not its own.
-  if (import.meta.env.DEV) {
-    import("./beat-ruler").then(({ initBeatRuler }) => {
-      initBeatRuler(
-        slots.map((s, i) => ({
-          ...s,
-          chapterId: config.chapters[i]?.id ?? `ch${i + 1}`,
-        })),
-        totalVH,
-        DEFAULT_BEAT_VH,
-      );
-    });
-  }
+  // Assemble the public BeatModel immediately — before any GSAP setup so
+  // every subsequent consumer (ruler, ?beats HUD) reads from it, not its own walk.
+  const model = buildModel(
+    slots,
+    totalVH,
+    chapterMotions,
+    config.chapters.map((c) => c.id),
+  );
 
   // Spacer gives the page real scroll height (fixed layers contribute none).
   const spacer = document.createElement("div");
@@ -157,12 +213,19 @@ export function initScrollEngine(
         papers.forEach((paper, i) => {
           const motion = chapterMotions[i];
           if (motion?.beats) {
-            const tl = motion.beats(paper);
+            const tl = motion.beats(paper, model.chapters[i]);
             tl.progress(1);
           }
         });
         return;
       }
+
+      // vh → px conversion for ScrollTrigger positions.
+      // GSAP does not support "vh" as a unit in position strings — parseFloat
+      // strips the suffix and the number is treated as raw px. We convert
+      // explicitly so positions are correct and resize-safe (arrow functions
+      // are re-evaluated on every ScrollTrigger.refresh()).
+      const vhToPx = (vh: number) => (vh * window.innerHeight) / 100;
 
       // ── Fly-aways ──────────────────────────────────────────────────────────
       papers.forEach((paper, i) => {
@@ -174,8 +237,8 @@ export function initScrollEngine(
           ...motion.paper,
           scrollTrigger: {
             trigger: spacer,
-            start: `top+=${slot.flyStart}vh top`,
-            end: `top+=${slot.flyEnd}vh top`,
+            start: () => vhToPx(slot.flyStart),
+            end: () => vhToPx(slot.flyEnd),
             scrub: 1.5,
           },
         });
@@ -209,8 +272,8 @@ export function initScrollEngine(
           },
           scrollTrigger: {
             trigger: spacer,
-            start: `top+=${slot.flyStart}vh top`,
-            end: `top+=${slot.flyEnd}vh top`,
+            start: () => vhToPx(slot.flyStart),
+            end: () => vhToPx(slot.flyEnd),
             scrub: 1.5,
           },
         });
@@ -225,11 +288,11 @@ export function initScrollEngine(
         const slot = slots[i];
         if (slot.beatStart === slot.beatEnd) return;
 
-        const tl = motion.beats(paper);
+        const tl = motion.beats(paper, model.chapters[i]);
         ScrollTrigger.create({
           trigger: spacer,
-          start: `top+=${slot.beatStart}vh top`,
-          end: `top+=${slot.beatEnd}vh top`,
+          start: () => vhToPx(slot.beatStart),
+          end: () => vhToPx(slot.beatEnd),
           scrub: 1.5,
           animation: tl,
         });
@@ -238,4 +301,6 @@ export function initScrollEngine(
       ScrollTrigger.refresh();
     },
   );
+
+  return model;
 }
