@@ -33,7 +33,7 @@
  */
 
 import gsap from "gsap";
-import type { Moment } from "./timeline-kit";
+import type { GsapEase, Moment } from "./timeline-kit";
 import type { ScheduledEvent } from "./beat-model";
 import { scroll } from "../config/scroll";
 
@@ -56,7 +56,7 @@ export interface EnterMoment {
   over: number;
   /** Starting tween vars. Default: y ≈ 120 vh below viewport (px, computed at runtime). */
   from?: gsap.TweenVars;
-  ease?: string;
+  ease?: GsapEase;
 }
 
 /**
@@ -70,7 +70,7 @@ export interface ExitMoment {
   over: number;
   /** Destination overrides. Default: y = -flyUp.distance vh, ease = flyUp.ease. */
   to?: gsap.TweenVars;
-  ease?: string;
+  ease?: GsapEase;
 }
 
 /**
@@ -89,6 +89,20 @@ export type PageSequenceEntry =
 /**
  * Start these moments at an absolute page beat (0 = page start).
  * This is the only authoring style for page scripts.
+ *
+ * Available moment factories:
+ * ```
+ * chapter(id, { dwellBeats })        place a chapter's dwell window
+ * enter(id, { over, ease })          animate a chapter paper in from below
+ * exit(id, { over, ease })           animate a chapter paper off-screen upward
+ * morph({ from, to, over })          tween --color-mat between two palette tokens
+ * hold(beats)                        pause; no animation
+ * show(id, { over, ease })           fade/reveal a [data-el] block
+ * hide(id, { over })                 fade/dismiss a [data-el] block
+ * enterTape({ at, over, ease })      year strip rises into view (timeline chapters)
+ * travel({ to, over, ease })         move the year strip to a target year
+ * stopTimelineAt(year, { dwell })    decelerate, highlight, reveal overlays
+ * ```
  */
 export function at(beat: number, ...moments: PageMoment[]): PageSequenceEntry {
   return { anchor: "absolute", beat, moments };
@@ -390,7 +404,7 @@ export function compilePage(
             duration: m.over,
             ease: "none",
             onUpdate() {
-              root.style.setProperty("--color-midground", lerp(proxy.t));
+              root.style.setProperty("--color-mat", lerp(proxy.t));
             },
           },
           start,

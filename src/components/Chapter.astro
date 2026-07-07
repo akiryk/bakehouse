@@ -9,10 +9,10 @@
 //             content sits directly on the midground. Use for full-bleed chapters.
 //
 // Layering model (paper=true, no negative z-index, no overflow:hidden):
-//   article.chapter-paper    — shadow stage: position:relative, isolation:isolate
-//   .chapter-shadow-wrap     — blur wrapper (z-index:0)
-//   .chapter-shadow-shape    — clipped trapezoid (inside blur wrapper)
-//   .chapter-paper-content   — the crisp white card (z-index:1, above shadow)
+//   article.chapter-paper    — shadow stage: relative isolate w-(--chapter-paper-width)
+//   .chapter-shadow-wrap     — blur wrapper (z-index:0, CSS: calc insets)
+//   .chapter-shadow-shape    — clipped trapezoid (CSS: clip-path polygon)
+//   .chapter-paper-content   — the crisp white card: relative z-1 bg-foreground
 
 interface Props {
   id: string;
@@ -24,11 +24,18 @@ const { id, paper = true } = Astro.props;
 
 {
   paper ? (
-    <article class="chapter-paper" data-chapter={id}>
+    <article
+      id="chapter-paper"
+      class="chapter-paper relative isolate w-(--chapter-paper-width) pointer-events-auto"
+      data-chapter={id}
+    >
       <div class="chapter-shadow-wrap">
         <div class="chapter-shadow-shape" />
       </div>
-      <div class="chapter-paper-content">
+      <div
+        id="chapter-paper-content"
+        class="chapter-paper-content relative z-1 bg-foreground pr-16 pb-12 pl-12 min-h-(--min-h-chapter)"
+      >
         {Astro.slots.has("header") && (
           <header class="chapter-header">
             <slot name="header" />
@@ -45,8 +52,8 @@ const { id, paper = true } = Astro.props;
       </div>
     </article>
   ) : (
-    <article class="chapter-bare" data-chapter={id}>
-      <div class="chapter-bare-content">
+    <article id="chapter-bare" class="chapter-bare relative" data-chapter={id}>
+      <div id="chapter-bare-content" class="chapter-bare-content">
         {Astro.slots.has("header") && (
           <header class="chapter-header">
             <slot name="header" />
@@ -68,17 +75,14 @@ const { id, paper = true } = Astro.props;
 <style>
   /* ── Paper variant ────────────────────────────────────────────────────────── */
 
-  /* Shadow stage — isolation:isolate lets the shadow sit below the card
-     without negative z-index. will-change:transform promotes the layer for
-     scroll compositing so the fly-away never repaints the blurred shadow. */
+  /* Tailwind handles: relative, isolate, w-(--chapter-paper-width).
+     CSS reason 1: will-change is GSAP-coordinated initial state — no Tailwind equivalent. */
   .chapter-paper {
-    position: relative;
-    isolation: isolate;
-    width: 75vw;
     will-change: transform;
   }
 
-  /* Two-element shadow system (blur on wrap, clip on shape) so the blur bleeds
+  /* CSS reason 1: calc(-1 * var(--...)) on right/bottom has no Tailwind equivalent.
+     Two-element shadow system (blur on wrap, clip on shape) so the blur bleeds
      past the polygon edges instead of being clipped to them. */
   .chapter-shadow-wrap {
     position: absolute;
@@ -90,6 +94,8 @@ const { id, paper = true } = Astro.props;
     z-index: 0;
   }
 
+  /* CSS reason 1: clip-path: polygon(...) has no Tailwind equivalent.
+     CSS reason 2: kept with shadow-wrap for shadow system cohesion. */
   .chapter-shadow-shape {
     width: 100%;
     height: 100%;
@@ -104,23 +110,11 @@ const { id, paper = true } = Astro.props;
     opacity: var(--paper-shadow-opacity);
   }
 
-  /* The crisp white card — sits above the shadow in the stacking context. */
-  .chapter-paper-content {
-    position: relative;
-    z-index: 1;
-    background-color: var(--color-foreground);
-    color: var(--color-ink);
-    font-family: var(--font-serif);
-    min-height: 60vh;
-    padding: 4rem 4rem 3rem 3rem;
-  }
-
   /* ── Paperless variant ────────────────────────────────────────────────────── */
 
-  /* No white card, no shadow. Content sits directly on the midground.
-     will-change:transform keeps the fly-away (if used) composited. */
+  /* Tailwind handles: relative.
+     CSS reason 1: will-change is GSAP-coordinated initial state — no Tailwind equivalent. */
   .chapter-bare {
-    position: relative;
     will-change: transform;
   }
 </style>

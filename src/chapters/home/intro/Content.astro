@@ -1,77 +1,83 @@
 ---
-import Chapter from "../../../components/Chapter.astro";
-import StageLeft from "../../../layouts/StageLeft.astro";
+import Chapter from "@components/Chapter.astro";
+import StageLeft from "@layouts/StageLeft.astro";
 ---
 
 <StageLeft>
   <Chapter id="intro">
-    <p slot="main" class="salutation">
-      Dear <span class="blank" aria-label="blank"></span>,
-    </p>
-    <p slot="main" class="salutation">
-      Thank you for your interest in my studio. I design and build websites in
-      the Durango area for a select group of very special clients.
-    </p>
-    <p slot="main" class="salutation">At least, that’s how I view them.</p>
-    <p slot="main" class="salutation">
-      Scroll down to learn something <a href="#" class="link">about me</a>, <a
-        href="#"
-        class="link">my services</a
-      >,and <a href="#" class="link">my work</a> — or <a href="#" class="link"
-        >reach out</a
-      > if you have questions.
-    </p>
+    <div slot="main" class="pt-16">
+      <p class="text-2xl mb-10 p-max-w-3xl">
+        Dear <span class="blank" aria-label="blank"></span>,
+      </p>
+      <p class="text-2xl mb-4 max-w-3xl">
+        Thank you for your interest in my studio. I design and build websites
+        and digital tools in the Durango area for a select group of very special
+        clients.
+      </p>
+      <p class="text-2xl mb-4 max-w-3xl">At least, that's how I view them.</p>
+      <p class="text-2xl mb-4 max-w-3xl">
+        Scroll down to learn something <a href="#" class="link">about me</a>, <a
+          href="#"
+          class="link">my services</a
+        >, and <a href="#" class="link">my work</a> — or <a
+          href="#"
+          class="link">reach out</a
+        > if you have questions.
+      </p>
+    </div>
+
+    <style>
+      /*
+     * Custom underline: a 0.5px gradient line below the cap height, with
+     * text-shadow gaps to avoid crossing descenders. background-image/size/
+     * position and text-shadow have no Tailwind equivalents (CLAUDE.md reason 1).
+     * Local vars reference --color-link-intro and --color-foreground from global.css
+     * rather than raw hex.
+     */
+      .link {
+        --link-color: var(--color-link-intro);
+        --paper-bg: var(--color-foreground);
+        --underline-color: color-mix(
+          in srgb,
+          var(--color-link-intro) 65%,
+          transparent
+        );
+
+        color: var(--link-color);
+        font-weight: 600;
+        text-decoration: none;
+
+        background-image: linear-gradient(
+          var(--underline-color),
+          var(--underline-color)
+        );
+        background-repeat: no-repeat;
+        background-size: 88% 0.5px;
+        background-position: 55% 1.15em;
+
+        text-shadow:
+          0.035em 0 var(--paper-bg),
+          -0.035em 0 var(--paper-bg),
+          0.07em 0 var(--paper-bg),
+          -0.07em 0 var(--paper-bg);
+      }
+
+      /*
+     * A ruled blank for the recipient's name.
+     * inline-block + vertical-align: sub seats the border on the text baseline.
+     * vertical-align: sub has no Tailwind equivalent (CLAUDE.md reason 1).
+     * Em-based geometry keeps the blank proportional to the font size.
+     */
+      .blank {
+        display: inline-block;
+        width: 5em;
+        height: 0.1em;
+        border-bottom: 1px solid var(--color-ink);
+        vertical-align: sub;
+        margin-left: 0.25em;
+        margin-right: 0.05em;
+        margin-top: 4px;
+      }
+    </style>
   </Chapter>
-
-  <style>
-    .link {
-      --link-color: #456a84;
-      --paper-bg: #fff;
-      --underline-color: rgba(69, 106, 132, 0.65);
-
-      color: var(--link-color);
-      font-weight: 600;
-      text-decoration: none;
-
-      background-image: linear-gradient(
-        var(--underline-color),
-        var(--underline-color)
-      );
-      background-repeat: no-repeat;
-      background-size: 88% 0.5px;
-      background-position: 55% 1.15em;
-
-      text-shadow:
-        0.035em 0 var(--paper-bg),
-        -0.035em 0 var(--paper-bg),
-        0.07em 0 var(--paper-bg),
-        -0.07em 0 var(--paper-bg);
-    }
-
-    .salutation {
-      font-family: var(--font-serif);
-      color: var(--color-ink);
-      font-size: 1.625rem;
-      margin: 0;
-      line-height: 1.4;
-      margin-bottom: 1em;
-      max-width: 30em;
-    }
-
-    /*
-   * A ruled blank for the recipient's name.
-   * inline-block + vertical-align: bottom seats the border on the text baseline.
-   * The 1.1em height gives a visible writing zone; the border is the rule itself.
-   */
-    .blank {
-      display: inline-block;
-      width: 5em;
-      height: 0.1em;
-      border-bottom: 1px solid var(--color-ink);
-      vertical-align: sub;
-      margin-left: 0.25em;
-      margin-right: 0.05em;
-      margin-top: 4px;
-    }
-  </style>
 </StageLeft>

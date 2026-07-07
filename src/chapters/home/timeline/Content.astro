@@ -31,7 +31,7 @@ const years = Array.from(
       <!-- opacity-0: pre-hidden so the element doesn't flash before GSAP loads.
            show("intro") in the script animates it in. -->
       <header class="tl-intro opacity-0" data-el="intro">
-        <h2 class="font-light">Services.</h2>
+        <h2 class="font-light">A little history.</h2>
         <p class="font-light m-0">
           I'm Adam Kiryk, a designer and web developer based in
           Durango,&nbsp;Colorado.
@@ -59,15 +59,15 @@ const years = Array.from(
               data-year={year}
               style={`top:${(year - CONFIG.firstYear) * CONFIG.pitch}vh`}
             >
-              <span class="tl-num font-light text-right box-border w-(--tl-line-x) text-(--tl-year)">
+              <span class="tl-num font-light text-right box-border w-(--tl-line-x) text-(--color-tl-year)">
                 {year}
               </span>
               <span
-                class="tl-tick w-0.5 -ml-px scale-x-0 origin-left bg-(--tl-year-active)"
+                class="tl-tick w-0.5 -ml-px scale-x-0 origin-left bg-(--color-tl-year-active)"
                 aria-hidden="true"
               />
               {NOTES[year] && (
-                <span class="tl-note font-light text-(--tl-note)">
+                <span class="tl-note font-light text-(--color-tl-note)">
                   {NOTES[year]}
                 </span>
               )}
@@ -111,21 +111,10 @@ const years = Array.from(
 </Chapter>
 
 <style>
-  /* ── Stage: CSS custom properties read by timeline-kit.ts at runtime ────────
-     Reason to keep in CSS: these are resolved via getComputedStyle() in the
-     animation kit. They must be CSS custom properties on a DOM element — they
-     cannot be Tailwind utilities because their values are consumed by JS, not
-     by the browser's style engine alone. */
+  /* ── Stage: CSS custom property read by timeline-kit.ts at runtime ──────────
+     --tl-line-x stays local: it's chapter-specific geometry, not a shared token.
+     Colors moved to global.css @theme (--color-tl-*) and referenced directly. */
   .tl-stage {
-    --tl-year: rgba(255, 255, 255, 0.35); /* year number color (muted) */
-    --tl-year-active: #ffffff; /* highlighted year color */
-    --tl-note: rgba(255, 255, 255, 0.8); /* note label color */
-    --tl-body: rgba(
-      255,
-      255,
-      255,
-      0.92
-    ); /* intro body text on colored background */
     --tl-line-x: 27%; /* line position — used by layout and JS */
   }
 
@@ -148,7 +137,7 @@ const years = Array.from(
   .tl-intro p {
     font-size: clamp(1.15rem, 2vw, 1.5rem);
     line-height: 1.45;
-    color: var(--tl-body);
+    color: var(--color-tl-body);
   }
 
   /* CSS mask for tape edge dissolve — Tailwind has no mask-image utility. */
@@ -205,7 +194,7 @@ const years = Array.from(
      box-shadow is a specific designer value, not a standard Tailwind shadow token. */
   .tl-card {
     padding: 1rem 1rem 1.2rem;
-    box-shadow: 0 22px 48px -24px rgb(0 0 0 / 0.45);
+    box-shadow: var(--shadow-card);
   }
 
   /* Per-card positions: left uses calc() with --tl-line-x; width uses min()

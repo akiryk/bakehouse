@@ -51,16 +51,16 @@ const staticClipPath = [
          tokens in global.css; don't touch this element. -->
     <div
       id="midground-mat"
-      class="fixed inset-0 z-1"
-      style={`background: var(--color-midground); clip-path: ${staticClipPath};`}
+      class="fixed inset-0 z-10"
+      style={`background: var(--color-mat); clip-path: ${staticClipPath};`}
       aria-hidden="true"
     >
     </div>
 
     <!-- Layer 3: Foreground stage — full-screen canvas, no layout opinion.
-         Each chapter wraps itself in a StageCenter or StageLeft component
-         that positions it absolutely within this div. -->
-    <div class="foreground-stage fixed inset-0 z-2">
+         pointer-events-none here so the transparent area of the stage doesn't
+         block the nav. Chapter.astro restores pointer-events-auto on each paper. -->
+    <div class="foreground-stage fixed inset-0 z-30 pointer-events-none">
       <slot />
     </div>
 
@@ -70,7 +70,7 @@ const staticClipPath = [
          .logo-backdrop rotates the paper zone; the img stays upright above it.
          To tune: edit the inset/rotate values in .logo-backdrop and the
          poke/blur values in .logo-shadow-wrap / .logo-shadow-shape below. -->
-    <a href="/" class="logo fixed z-3 top-0 left-0" aria-label="Bakehouse">
+    <a href="/" class="logo fixed z-40 top-0 left-0" aria-label="Bakehouse">
       <div class="logo-backdrop">
         <div class="logo-shadow-wrap">
           <div class="logo-shadow-shape"></div>

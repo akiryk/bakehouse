@@ -62,6 +62,65 @@
 import gsap from "gsap";
 import type { ScheduledEvent, ChapterBeats } from "./beat-model";
 
+// ─── Shared authoring types ───────────────────────────────────────────────────
+
+/**
+ * GSAP built-in ease names. Add CustomEase.create() names as needed.
+ * The `(string & {})` tail allows any string while preserving autocomplete.
+ */
+export type GsapEase =
+  | "none"
+  | "linear"
+  | "power1.in"
+  | "power1.out"
+  | "power1.inOut"
+  | "power2.in"
+  | "power2.out"
+  | "power2.inOut"
+  | "power3.in"
+  | "power3.out"
+  | "power3.inOut"
+  | "power4.in"
+  | "power4.out"
+  | "power4.inOut"
+  | "back.in"
+  | "back.out"
+  | "back.inOut"
+  | "bounce.in"
+  | "bounce.out"
+  | "bounce.inOut"
+  | "circ.in"
+  | "circ.out"
+  | "circ.inOut"
+  | "elastic.in"
+  | "elastic.out"
+  | "elastic.inOut"
+  | "expo.in"
+  | "expo.out"
+  | "expo.inOut"
+  | "sine.in"
+  | "sine.out"
+  | "sine.inOut"
+  | (string & {}); // escape hatch for CustomEase names
+
+/**
+ * CSS custom property names for mat morph source colors.
+ * These must be defined in the :root palette block in global.css.
+ * The `(string & {})` tail allows new entries before the type is updated.
+ */
+export type PaletteToken =
+  | "--palette-white"
+  | "--palette-tan"
+  | "--palette-sage"
+  | "--palette-slate"
+  | "--palette-brown"
+  | "--palette-shadow"
+  | "--palette-grey"
+  | "--palette-blue"
+  | "--palette-steel"
+  | "--palette-blush"
+  | (string & {}); // escape hatch for new palette entries
+
 // ─── Script types ─────────────────────────────────────────────────────────────
 
 export interface TimelineConfig {
@@ -90,7 +149,7 @@ export type Moment = MomentBase &
         over: number;
         from?: ShowTweenVars;
         to?: ShowTweenVars;
-        ease?: string;
+        ease?: GsapEase;
       }
     | { kind: "hide"; id: string; over: number }
     | { kind: "hold"; beats: number }
@@ -102,9 +161,9 @@ export type Moment = MomentBase &
         fromOffset?: number;
         fromOpacity?: number;
         toOpacity?: number;
-        ease?: string;
+        ease?: GsapEase;
       }
-    | { kind: "travel"; to: number; over: number; ease?: string }
+    | { kind: "travel"; to: number; over: number; ease?: GsapEase }
     | {
         kind: "stopTimelineAt";
         year: number;
@@ -121,7 +180,7 @@ export type Moment = MomentBase &
         /** beats the exit fade takes as the tape resumes (default 0.5) */
         exitOver?: number;
       }
-    | { kind: "morph"; from: string; to: string; over: number }
+    | { kind: "morph"; from: PaletteToken; to: PaletteToken; over: number }
   );
 
 // ─── Sequence entries (the flat, explicit-timing authoring style) ────────────
@@ -221,7 +280,7 @@ export interface RevealSpec {
   /** Duration in beats. Overrides stopTimelineAt.revealOver for this overlay. */
   over?: number;
   /** Easing. Default: "power2.out" */
-  ease?: string;
+  ease?: GsapEase;
 }
 
 function durationOf(m: Moment, tapeYear: number | null): number {
@@ -436,10 +495,14 @@ export function compile(
   const stage = el("[data-el='stage']") ?? container;
   const yearMuted = resolveStageColor(
     stage,
-    "--tl-year",
+    "--color-tl-year",
     "rgba(255,255,255,0.35)",
   );
-  const yearActive = resolveStageColor(stage, "--tl-year-active", "#ffffff");
+  const yearActive = resolveStageColor(
+    stage,
+    "--color-tl-year-active",
+    "#ffffff",
+  );
 
   // Overlays: all start hidden. Per-reveal custom `from` states are applied
   // after resolveScript so the initial state matches the tween's from exactly.
@@ -672,7 +735,7 @@ export function compile(
             duration: m.over,
             ease: "none",
             onUpdate() {
-              root.style.setProperty("--color-midground", lerp(proxy.t));
+              root.style.setProperty("--color-mat", lerp(proxy.t));
             },
           },
           start,
@@ -727,7 +790,7 @@ type ShowOpts = {
   over?: number;
   from?: ShowTweenVars;
   to?: ShowTweenVars;
-  ease?: string;
+  ease?: GsapEase;
 } & Opts;
 
 export const show = (id: string, o: ShowOpts = {}): Moment => ({
@@ -762,7 +825,7 @@ export const enterTape = (
     fromOffset?: number;
     fromOpacity?: number;
     toOpacity?: number;
-    ease?: string;
+    ease?: GsapEase;
   } & Opts,
 ): Moment => ({
   kind: "enterTape",
@@ -776,7 +839,7 @@ export const enterTape = (
   offset: o.offset,
 });
 export const travel = (
-  o: { to: number; over: number; ease?: string } & Opts,
+  o: { to: number; over: number; ease?: GsapEase } & Opts,
 ): Moment => ({
   kind: "travel",
   to: o.to,
@@ -810,7 +873,7 @@ export const stopTimelineAt = (
 });
 
 export const morph = (
-  o: { from: string; to: string; over?: number } & Opts,
+  o: { from: PaletteToken; to: PaletteToken; over?: number } & Opts,
 ): Moment => ({
   kind: "morph",
   from: o.from,

@@ -1,59 +1,101 @@
 @import "tailwindcss";
 
-/* Mat safe-area tokens */
+/* ─────────────────────────────────────────────────────────────────────────────
+   Root custom properties
+   Plain CSS variables — not Tailwind tokens. Covers palette hex values, layout
+   geometry, and shadow parameters. The @theme block below references these;
+   components never reference palette variables directly.
+   ───────────────────────────────────────────────────────────────────────────── */
 :root {
-  --mat-safe-inset-x: 20px; /* left / right -- must stay >= motionRadius */
+  /* Color palette — the complete set of hex values used in the site.
+     One entry per distinct color. Change a value here; everything updates.
+     Add new colors here and expose them via @theme below. */
+  --palette-white: #ffffff;
+  --palette-tan: #cfc6b6; /* warm tan */
+  --palette-sage: #d9dccc; /* muted sage */
+  --palette-slate: #8a9ba5; /* cool blue-grey */
+  --palette-brown: #79530b; /* warm ink brown */
+  --palette-shadow: #351800; /* warm dark, not raw black */
+  --palette-grey: #8a8278; /* muted warm grey */
+  --palette-blue: #456a84; /* cool blue */
+  --palette-steel: #7c93a0; /* muted blue-grey */
+  --palette-blush: #b8a99a; /* warm pinkish-tan */
+
+  /* Mat safe-area — govern the inset of the midground polygon's vertex homes.
+     --mat-safe-inset-x must stay >= the octagon's motionRadius. */
+  --mat-safe-inset-x: 20px;
   --mat-safe-inset-top: 60px; /* reserves logo + nav headroom */
   --mat-safe-inset-bottom: 50px; /* slightly more than sides for balance */
-}
 
-/* Midground color palette.
-   These are the available midground colors chapters can declare.
-   --color-midground is the live value driven by the scroll engine between
-   these palette stops. Add new palette entries here; reference them in pages.ts. */
-:root {
-  --midground-tan: #cfc6b6; /* warm tan — the default/initial mat color */
-  --midground-sage: #d9dccc; /* muted sage — shown during/after intro fly-away */
-  --midground-slate: #8a9ba5; /* cool blue-grey */
-  --midground-slate-deep: #8a9ba5; /* darker blue-grey — chapter 2 beat 2 target */
-}
-
-/* Stage layout tokens — govern where chapter papers sit within the foreground canvas.
-   --stage-left-inset: left edge of left-aligned chapters; defaults to the mat's
-   visible left edge so paper and mat share the same left margin out of the box. */
-:root {
+  /* Stage layout — governs where chapter papers sit within the foreground canvas.
+     --stage-left-inset: left edge of left-aligned chapters. */
   --stage-left-inset: 10vw;
-}
 
-/* Paper shadow tokens.
-   The shadow is a ::before trapezoid that extends past the card's lower-right
-   corner. poke-x/poke-y control how far it juts out; blur softens the edge.
-   --paper-shadow-color references the ink token so it stays single-sourced. */
-:root {
-  --paper-shadow-color: #351800; /* warm dark, not raw black */
+  /* Paper shadow — a trapezoid extending past the card's lower-right corner.
+     poke-x/y control how far it juts out; blur softens the edge. */
+  --paper-shadow-color: var(--palette-shadow);
   --paper-shadow-opacity: 0.4;
   --paper-shadow-blur: 6px;
   --paper-shadow-poke-x: 5px; /* how far the shadow juts past the card's right edge */
   --paper-shadow-poke-y: 10px; /* how far the shadow juts past the card's bottom edge */
-  --paper-shadow-inset: 12px; /* how far the shadow polygon is inset from the left/top/bottom card edges */
+  --paper-shadow-inset: 12px; /* how far the shadow polygon is inset from left/top/bottom */
 }
 
 @theme {
-  /* Colors */
-  --color-background: #ffffff; /* flat backmost layer */
-  --color-midground: #cfc6b6; /* the animated polygon (tan) */
-  --color-foreground: #ffffff; /* the "paper" */
-  --color-ink: #79530b; /* body + heading text (warm brown) */
+  /* ── Semantic colors ─────────────────────────────────────────────────────────
+     Named by role, not appearance. Each generates bg-*, text-*, border-*
+     Tailwind utilities automatically. --color-mat is the live value tweened by
+     the scroll engine between palette stops via morph(). */
+  --color-background: var(--palette-white); /* flat backmost layer */
+  --color-mat: var(--palette-tan); /* the animated polygon */
+  --color-foreground: var(--palette-white); /* the "paper" */
+  --color-ink: var(--palette-brown); /* body + heading text */
+  --color-caption: var(--palette-steel); /* captions and secondary card text */
+  --color-link: var(--palette-grey); /* muted links */
+  --color-link-intro: var(--palette-blue); /* intro chapter link color */
+  --color-accent: var(--palette-blush); /* color dots / nav accents */
+  --color-nav-text: var(--color-mat); /* nav tracks the live mat color */
 
-  /* TBD placeholders -- provisional values, tune against the design */
-  --color-caption: #7c93a0; /* muted blue-grey for captions and secondary card text */
-  --color-link: #8a8278; /* muted links */
-  --color-accent: #b8a99a; /* color dots / nav accents */
-  --color-nav-text: var(
-    --color-midground
-  ); /* nav tracks the live midground color */
+  /* ── Dividers ────────────────────────────────────────────────────────────── */
+  --color-divider: color-mix(
+    in srgb,
+    var(--color-ink) 20%,
+    transparent
+  ); /* hairline rules — ink at low opacity */
 
-  /* Typography */
+  /* ── Timeline chapter ────────────────────────────────────────────────────────
+     Colors for the paperless timeline (and any similar full-bleed chapter).
+     White at varying opacity, designed to sit on the colored mat background. */
+  --color-tl-year: rgba(255, 255, 255, 0.35); /* muted year numbers */
+  --color-tl-year-active: var(--palette-white); /* highlighted/active year */
+  --color-tl-note: rgba(255, 255, 255, 0.8); /* note labels */
+  --color-tl-body: rgba(255, 255, 255, 0.92); /* body text on colored mat */
+
+  /* ── Palette utilities ───────────────────────────────────────────────────────
+     Direct palette access for when no semantic token fits — e.g. a UI border
+     that should match a mat morph target. Generates bg-tan, text-sage,
+     border-slate, etc. */
+  --color-tan: var(--palette-tan);
+  --color-sage: var(--palette-sage);
+  --color-slate: var(--palette-slate);
+
+  /* ── Shadows ─────────────────────────────────────────────────────────────── */
+  --shadow-card: 0 22px 48px -24px rgb(0 0 0 / 0.45); /* project card lift */
+
+  /* ── Z-index layers ─────────────────────────────────────────────────────────
+     Documents the layer stack. Use var(--z-*) in CSS style blocks; in HTML
+     use the matching numeric Tailwind class (z-10, z-20, z-30, z-40) since
+     Tailwind v4 does not generate named z-* utilities from @theme. */
+  --z-midground: 10; /* the animated mat polygon */
+  --z-nav: 20; /* primary navigation — above mat, below content */
+  --z-foreground: 30; /* chapter stage — must be pointer-events:none on the container */
+  --z-logo: 40; /* logo — topmost persistent UI */
+
+  /* ── Chapter layout ──────────────────────────────────────────────────────── */
+  --chapter-paper-width: 75vw; /* paper occupies 75% of the viewport */
+  --min-h-chapter: 60vh; /* minimum card height before content fills it */
+
+  /* ── Typography ──────────────────────────────────────────────────────────── */
   --font-serif:
     "adobe-caslon-pro", "Big Caslon", "Hoefler Text", Georgia, serif;
   --font-sans: "futura-pt", "Futura", "Century Gothic", sans-serif;
@@ -86,6 +128,5 @@ body {
   background-color: var(--color-background);
   -webkit-font-smoothing: antialiased;
   font-weight: 400;
-  letter-spacing: 0.005em;
   font-synthesis: none;
 }

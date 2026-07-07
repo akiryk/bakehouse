@@ -127,12 +127,24 @@ bakehouse/
 
 ## Conventions/Rules
 
-- **All visual values come from design tokens.** Colors, fonts, and type live in the
-  Tailwind `@theme` block (`src/styles/global.css`); motion/behavior values (wobble
-  ranges, easings, durations) live in `src/config/motion.ts`. **Never hardcode a color,
-  font, size, or timing in a component** — reach for a token (a Tailwind utility, a CSS
-  variable, or a value from `motion.ts`). If a value affects how the site looks or feels,
-  it belongs in a token home, not inline.
+- **All visual values come from design tokens.** `src/styles/global.css` is the single
+  source of truth for all color, font, shadow, and layout tokens, organized in two layers:
+
+  - **`:root` palette** — raw hex values (`--palette-tan`, `--palette-blue`, …). One entry
+    per distinct color. No component ever references these directly.
+  - **`@theme` semantic tokens** — role-named values that reference the palette
+    (`--color-ink: var(--palette-brown)`). Each entry automatically generates Tailwind
+    utilities (`text-ink`, `bg-ink`, `border-ink`). This is also where shadows
+    (`--shadow-card`), chapter geometry (`--chapter-paper-width`), and any other
+    design-system values live.
+
+  Motion and behavior values (wobble ranges, easings, durations) live in
+  `src/config/motion.ts`. **Never hardcode a color, font, size, timing, or shadow in a
+  component** — reach for a token (a Tailwind utility, a CSS variable, or a value from
+  `motion.ts`). If a value affects how the site looks or feels, it belongs in a token
+  home, not inline. **This rule applies to every chapter**, not just shared components —
+  chapter-specific colors and shadows (like `--color-tl-year`) belong in `global.css`
+  so they're findable, reusable, and consistent with the rest of the system.
 
 - **Styling is Tailwind-first. This is non-negotiable.** The default answer to every
   styling question is a Tailwind utility class. A `<style>` block is a last resort, not a

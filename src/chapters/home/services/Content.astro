@@ -1,67 +1,36 @@
 ---
-import Chapter from "../../../components/Chapter.astro";
-import StageLeft from "../../../layouts/StageLeft.astro";
+import Chapter from "@components/Chapter.astro";
+import StageLeft from "@layouts/StageLeft.astro";
 ---
 
 <StageLeft>
   <Chapter id="services">
-    <div slot="main">
-      <section class="service-item">
-        <h3 class="font-bold">Create a brand new website</h3>
-        <p>
-          Starting with a business idea, growing into a marginal plan,
-          subsequent to binomial nomenclatural hydroponics, we craft your splash
-          page.
+    <div slot="main" class="max-w-3xl pt-10">
+      <h2 class="text-2xl mb-10 pb-2 italic border-b border-sage">
+        What I can do for you...
+      </h2>
+      <section class="service-item text-2xl mb-8">
+        <h3 class="font-bold mb-2">Create a new website or app</h3>
+        <p class="mb-4">
+          Whether you already have an idea or you’re starting from scratch, we
+          can create a compelling experience.
         </p>
       </section>
 
-      <hr class="service-rule" />
-
-      <section class="service-item">
-        <h3 class="font-bold">Add features and improve an existing website</h3>
-        <p>
-          Add features or functionality: a payment system; a scheduling tool;
-          contact or feedback forms. Like a business idea, growing into a
-          marginal plan, subsequent to binomial nomenclatural hydroponics.
+      <section class="service-item text-2xl mb-8">
+        <h3 class="font-bold mb-2">Update an existing website or app</h3>
+        <p class="mb-4">
+          Add features, refresh the design, improve critical functionality.
         </p>
       </section>
 
-      <hr class="service-rule" />
-
-      <section class="service-item">
-        <h3 class="font-bold">Maintain, fix, cajole, and tweak</h3>
-        <p>
-          Starting with a business idea, growing into a marginal plan,
-          subsequent to binomial nomenclatural hydroponics, we craft your splash
-          page.
+      <section class="service-item text-2xl mb-4">
+        <h3 class="font-bold mb-2">Handle regular maintenance</h3>
+        <p class="mb-4">
+          Maybe you just need updates to a description, pricing model, calendar
+          dates, or something else.
         </p>
       </section>
     </div>
   </Chapter>
 </StageLeft>
-
-<style>
-  .service-item {
-    padding: 1.5rem 0;
-  }
-
-  /* h3 and p inherit font-serif, color-ink, and size from .chapter-paper-content.
-     Only font-weight is added here; Tailwind font-bold is in the class attribute. */
-  .service-item h3 {
-    margin: 0 0 0.5em;
-    font-size: 1.05rem;
-  }
-
-  .service-item p {
-    margin: 0;
-    line-height: 1.55;
-    font-size: 1rem;
-  }
-
-  /* Hairline separator — no Tailwind equivalent for the exact warm-muted tone. */
-  .service-rule {
-    border: none;
-    border-top: 1px solid color-mix(in srgb, var(--color-ink) 20%, transparent);
-    margin: 0;
-  }
-</style>

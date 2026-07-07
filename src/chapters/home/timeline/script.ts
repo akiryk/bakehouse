@@ -73,14 +73,20 @@ export const SCRIPT = defineScript({
         to: { opacity: 1, y: 0 },
         ease: "power2.out",
       }),
-      travel({ to: 2000, over: 2 }),
     ),
 
-    at(1.5, hide("intro", { over: 0.5 })),
+    at(2, hide("intro", { over: 0.5 })),
+
+    at(
+      2,
+      stopTimelineAt(1995, {
+        dwell: 3,
+      }),
+    ),
 
     // First project stop: WineSmarts at 2000.
     at(
-      2.9,
+      5,
       stopTimelineAt(2000, {
         dwell: 2,
         reveal: [
@@ -94,7 +100,7 @@ export const SCRIPT = defineScript({
     ),
 
     // A quick zip forward…
-    at(4.9, travel({ to: 2010, over: 1.25, ease: "power1.inOut" })),
+    at(6, travel({ to: 2010, over: 1.25, ease: "power1.inOut" })),
 
     // …into a second stop, demonstrating a different reveal position/size.
     at(6.15, stopTimelineAt(2011, { dwell: 2.5, reveal: ["sample-2011"] })),
