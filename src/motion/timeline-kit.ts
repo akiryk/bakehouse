@@ -28,15 +28,33 @@
  *                                dwell, auto-release as travel resumes
  *   morph({from,to})             midground color morph between palette tokens
  *
- * SEQUENCING — the `sequence` style (preferred):
- *   A flat list of entries. Each entry starts relative to the PREVIOUS entry:
- *     sinceStart(n, ...moments)  → n beats after the previous entry STARTED
- *     sinceEnd(n, ...moments)    → n beats after the previous entry ENDED
- *                                  (bare sinceEnd(...) = the moment it ends)
- *   Moments in the same entry start together. An entry's "end" is the end of
- *   its longest moment. Negative gaps are allowed. With ?beats in the URL the
- *   full resolved schedule (absolute start/end of everything) is printed as a
- *   console table — that's the ground truth while tuning.
+ * SEQUENCING — the `sequence` style:
+ *   Write each entry as at(beat, ...moments) where beat is the absolute start
+ *   in the script's own scope (0 = script start). Moments in the same entry
+ *   start together; the entry's end is the end of its longest moment.
+ *
+ *     sequence: [
+ *       at(0,    show("intro", { over: 1 })),
+ *       at(0.5,  show("line",  { over: 1.5 })),
+ *       at(2,    hide("intro", { over: 0.8 })),
+ *     ]
+ *
+ *   Keep entries in chronological order for readability. Tape-moving entries
+ *   (enterTape / travel / stopTimelineAt) MUST stay chronological: the walk
+ *   processes entries in list order to track tape state, so an out-of-order
+ *   tape entry produces wrong approach durations for stopTimelineAt.
+ *
+ *   Editing ripple is handled by plain TS consts in the script file:
+ *     const INTRO_IN  = 0;
+ *     const INTRO_OUT = INTRO_IN + 2;
+ *     at(INTRO_IN,  show("intro")),
+ *     at(INTRO_OUT, hide("intro")),
+ *
+ *   With ?beats in the URL the full resolved schedule (absolute start/end of
+ *   every moment) is printed as a console table — the ground truth while tuning.
+ *
+ *   Deprecated: sinceStart() / sinceEnd() — relative entries still compile but
+ *   are not for use in new scripts.
  *
  *   The legacy `moments` style (withPrevious/offset) still compiles.
  */
@@ -108,11 +126,9 @@ export type Moment = MomentBase &
 
 // ─── Sequence entries (the flat, explicit-timing authoring style) ────────────
 
-export interface SequenceEntry {
-  anchor: "start" | "end";
-  gap: number;
-  moments: Moment[];
-}
+export type SequenceEntry =
+  | { anchor: "start" | "end"; gap: number; moments: Moment[] }
+  | { anchor: "absolute"; beat: number; moments: Moment[] };
 
 function makeEntry(
   anchor: "start" | "end",
@@ -124,8 +140,22 @@ function makeEntry(
     : { anchor, gap: 0, moments: [first, ...rest] };
 }
 
-/** Start `gap` beats after the PREVIOUS entry STARTED. */
+/**
+ * Start these moments at an absolute beat (0 = start of this script's scope).
+ * This is the preferred authoring model — see SEQUENCING in the file header.
+ */
+export function at(beat: number, ...moments: Moment[]): SequenceEntry {
+  return { anchor: "absolute", beat, moments };
+}
+
+/**
+ * @deprecated Use at() instead. Relative anchors still compile but are not
+ * for use in new scripts.
+ * TODO: candidate for removal — kept provisionally in case a use case survives
+ * real-world authoring in the absolute style. Do not use in new scripts.
+ */
 export function sinceStart(gap: number, ...moments: Moment[]): SequenceEntry;
+/** @deprecated Use at() instead. */
 export function sinceStart(...moments: Moment[]): SequenceEntry;
 export function sinceStart(
   first: number | Moment,
@@ -134,8 +164,14 @@ export function sinceStart(
   return makeEntry("start", first, rest);
 }
 
-/** Start `gap` beats after the PREVIOUS entry ENDED (bare = the moment it ends). */
+/**
+ * @deprecated Use at() instead. Relative anchors still compile but are not
+ * for use in new scripts.
+ * TODO: candidate for removal — kept provisionally in case a use case survives
+ * real-world authoring in the absolute style. Do not use in new scripts.
+ */
 export function sinceEnd(gap: number, ...moments: Moment[]): SequenceEntry;
+/** @deprecated Use at() instead. */
 export function sinceEnd(...moments: Moment[]): SequenceEntry;
 export function sinceEnd(
   first: number | Moment,
@@ -243,8 +279,13 @@ function walkSequence(entries: SequenceEntry[]): {
   let total = 0;
 
   for (const entry of entries) {
-    const base = entry.anchor === "start" ? prevStart : prevEnd;
-    const start = Math.max(0, base + entry.gap);
+    let start: number;
+    if (entry.anchor === "absolute") {
+      start = entry.beat;
+    } else {
+      const base = entry.anchor === "start" ? prevStart : prevEnd;
+      start = Math.max(0, base + entry.gap);
+    }
     let entryEnd = start;
 
     for (const m of entry.moments) {

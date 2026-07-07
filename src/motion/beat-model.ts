@@ -1,8 +1,8 @@
 /**
  * Public beat-model — the read-only timing API for the scroll engine.
  *
- * A single BeatModel is assembled by the engine once, immediately after
- * computeSlots, and returned from initScrollEngine. Every consumer (devtools,
+ * A single BeatModel is assembled by the engine once from the page script,
+ * before any GSAP setup, and returned from initPageEngine. Every consumer (devtools,
  * tests, future readers) accesses timing from this model — no consumer
  * recomputes it or reaches into engine internals.
  *
@@ -55,4 +55,10 @@ export interface BeatModel {
   /** Total page scroll height in vh — matches the engine's spacer element. */
   totalVH: number;
   chapters: ChapterBeats[];
+  /**
+   * Resolved page-level event schedule from the page script.
+   * startBeat / endBeat are PAGE-ABSOLUTE beats (not chapter-relative).
+   * Undefined when no page script is present.
+   */
+  pageSchedule?: ScheduledEvent[];
 }

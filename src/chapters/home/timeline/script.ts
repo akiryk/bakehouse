@@ -1,29 +1,26 @@
 /**
  * Chapter 2 — THE TWEAK FILE.
  *
- * The storyboard is a flat sequence. Each entry starts relative to the
- * PREVIOUS entry:
- *   sinceStart(n, ...moments)  → n beats after the previous entry STARTED
- *   sinceEnd(n, ...moments)    → n beats after the previous entry ENDED
- *                                (bare sinceEnd(...) = the moment it ends)
- * Moments in the same entry start together. Negative gaps are allowed.
+ * The storyboard is a flat sequence of at(beat, ...moments) entries.
+ * `beat` is an absolute position in this script's scope (0 = script start).
+ * Moments in the same entry start together.
  *
  * Units: beats. 1 beat = CONFIG.vhPerBeat viewport-heights of scroll.
  * Add ?beats to the URL for the live HUD *and* a console table of the full
  * resolved schedule (absolute start/end of every moment — the ground truth).
+ *
+ * Editing ripple: use plain TS consts to name anchor points, then reference
+ * them across entries so a single change ripples through.
  */
 
 import {
   defineScript,
-  sinceStart,
-  sinceEnd,
+  at,
   show,
   hide,
   hold,
-  enterTape,
   travel,
   stopTimelineAt,
-  morph,
 } from "@motion/timeline-kit";
 
 // ─── Geometry & feel ──────────────────────────────────────────────────────────
@@ -58,7 +55,7 @@ export const NOTES: Record<number, string> = {
 export const SCRIPT = defineScript({
   config: CONFIG,
   sequence: [
-    sinceStart(
+    at(
       0,
       show("intro", {
         over: 0.5,
@@ -67,25 +64,23 @@ export const SCRIPT = defineScript({
       }),
     ),
 
-    // sinceEnd means since the previous action ended
-    sinceEnd(
-      0.5,
+    // Line rises in 0.5 beats after intro settles; tape begins traveling simultaneously.
+    at(
+      1.0,
       show("line", {
         over: 0.5,
         from: { opacity: 1, y: "100vh" },
         to: { opacity: 1, y: 0 },
         ease: "power2.out",
       }),
+      travel({ to: 2000, over: 2 }),
     ),
 
-    // The moment the line settles, the years begin rising — intro still up.
-    sinceStart(0, travel({ to: 2000, over: 2 })),
+    at(1.5, hide("intro", { over: 0.5 })),
 
-    sinceStart(0.5, hide("intro", { over: 0.5 })),
-
-    // First project stop: WineSmarts at 2002.
-    sinceEnd(
-      0.9,
+    // First project stop: WineSmarts at 2000.
+    at(
+      2.9,
       stopTimelineAt(2000, {
         dwell: 2,
         reveal: [
@@ -99,13 +94,13 @@ export const SCRIPT = defineScript({
     ),
 
     // A quick zip forward…
-    sinceEnd(travel({ to: 2010, over: 1.25, ease: "power1.inOut" })),
+    at(4.9, travel({ to: 2010, over: 1.25, ease: "power1.inOut" })),
 
     // …into a second stop, demonstrating a different reveal position/size.
-    sinceEnd(stopTimelineAt(2011, { dwell: 2.5, reveal: ["sample-2011"] })),
+    at(6.15, stopTimelineAt(2011, { dwell: 2.5, reveal: ["sample-2011"] })),
 
     // Cruise to the present, then a beat of rest to close the chapter.
-    sinceEnd(travel({ to: 2026, over: 4 })),
-    sinceEnd(hold(1)),
+    at(9.4, travel({ to: 2026, over: 4 })),
+    at(13.4, hold(1)),
   ],
 });

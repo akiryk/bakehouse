@@ -6,14 +6,8 @@ import { compile, resolveSchedule } from "../../../motion/timeline-kit";
 import { SCRIPT } from "./script";
 
 const motion: ChapterMotion = {
-  // Total beats allocated to this chapter's dwell window — derived directly
-  // from the script. Add moments and this grows automatically; change vhPerBeat
-  // in config/scroll.ts and the scroll distance rescales with it.
-  durationBeats: SCRIPT.totalBeats,
-
-  // Resolved event schedule — the engine includes this in the BeatModel.
-  // script.ts never knows a consumer exists; the schedule just flows out here.
-  schedule: resolveSchedule(SCRIPT),
+  // Resolved event schedule — devtools only; tree-shaken from production builds.
+  schedule: import.meta.env.DEV ? resolveSchedule(SCRIPT) : undefined,
 
   beats(container, chapterBeats) {
     return compile(container, SCRIPT, chapterBeats);

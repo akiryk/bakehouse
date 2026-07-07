@@ -12,13 +12,14 @@ import TimelineContent from "../chapters/home/timeline/Content.astro";
 </Base>
 
 <script>
-  import { initScrollEngine } from "../motion/engine";
+  import { initPageEngine } from "../motion/engine";
   import { pages } from "../config/pages";
+  import { PAGE } from "../scripts/home.script";
   import introMotion from "../chapters/home/intro/motion";
   import servicesMotion from "../chapters/home/services/motion";
   import timelineMotion from "../chapters/home/timeline/motion";
 
-  const model = initScrollEngine(pages.home, [
+  const model = initPageEngine(pages.home, PAGE, [
     introMotion,
     servicesMotion,
     timelineMotion,
@@ -27,6 +28,7 @@ import TimelineContent from "../chapters/home/timeline/Content.astro";
   if (import.meta.env.DEV && model) {
     // Expose for console inspection: __beatModel.chapters[1].schedule
     (window as any).__beatModel = model;
+    // Page schedule accessible via __beatModel.pageSchedule
     import("../dev/beat-ruler").then(({ initBeatRuler }) =>
       initBeatRuler(model),
     );

@@ -2,10 +2,13 @@
  * Dev-only beat ruler overlay.
  *
  * A fixed column on the right edge that slides with scroll. Shows:
- *   LEFT lane  — numbered beat bars, chapter-relative (resets to 0 at each
- *                chapter), each bar exactly one vhPerBeat of scroll tall.
- *   RIGHT lane — labeled event spans from chapter.schedule, positioned at
- *                their chapter-relative beat offsets.
+ *   LEFT lane   — numbered beat bars, chapter-relative (resets to 0 at each
+ *                 chapter), each bar exactly one vhPerBeat of scroll tall.
+ *   MIDDLE lane — labeled event spans from chapter.schedule, positioned at
+ *                 their chapter-relative beat offsets.
+ *   RIGHT lane  — labeled event spans from model.pageSchedule, positioned at
+ *                 page-absolute beat offsets. Amber/orange color to distinguish
+ *                 from chapter-level events.
  *
  * Coordinate space: EVERYTHING is derived from the model's absolute vh
  * offsets (ch.scrollVH.*) converted to px via vhToPx(). The inner strip
@@ -16,14 +19,72 @@
  * Chapter 1 has endBeat: 0 → no numbered bars, only a dim exit band.
  * Chapter 2 has no fly-away → no exit band, only numbered bars + events.
  *
+ * The ?beats URL param activates a page HUD showing:
+ *   page beat / total   active-chapter   ch-beat / ch-total
+ *
  * Keyboard toggle: Cmd/Ctrl + Shift + \
  * Reads only BeatModel + window.scrollY. Zero timing logic.
  */
 
-import type { BeatModel } from "../motion/beat-model";
+import type { BeatModel, ScheduledEvent } from "../motion/beat-model";
 
 /** Minimum rendered height for a zero-length event span (px). */
 const MIN_SPAN_PX = 4;
+
+// ── Event grouping ────────────────────────────────────────────────────────────
+// Events sharing the same startBeat are merged into one span so their labels
+// stack vertically instead of layering on top of each other.
+
+interface GroupedEvent {
+  startBeat: number;
+  endBeat: number; // max across all events in the group
+  label: string; // labels joined by "\n"
+}
+
+// ── Label rendering ───────────────────────────────────────────────────────────
+// Renders a (possibly multi-line) grouped label into a parent element.
+// Lines matching the chapter format "name (Xb)" are bold + capitalized;
+// all other lines (exit, enter, morph, …) use normal weight.
+
+/** Matches "intro (0b)", "timeline (14.4b)", etc. */
+const CHAPTER_LINE_RE = /^.+\s\(\d+(\.\d+)?b\)$/;
+
+function renderLines(
+  parent: HTMLElement,
+  text: string,
+  color: string,
+  fontSize = "0.75em",
+): void {
+  for (const line of text.split("\n")) {
+    const el = document.createElement("div");
+    const isChapter = CHAPTER_LINE_RE.test(line);
+    Object.assign(el.style, {
+      fontSize,
+      lineHeight: "1.2",
+      color,
+      userSelect: "none",
+      whiteSpace: "normal",
+      fontWeight: isChapter ? "bold" : "normal",
+      textTransform: isChapter ? "capitalize" : "none",
+    });
+    el.textContent = line;
+    parent.appendChild(el);
+  }
+}
+
+function groupByStartBeat(events: ScheduledEvent[]): GroupedEvent[] {
+  const map = new Map<number, GroupedEvent>();
+  for (const evt of events) {
+    const existing = map.get(evt.startBeat);
+    if (existing) {
+      existing.label += "\n" + evt.label;
+      existing.endBeat = Math.max(existing.endBeat, evt.endBeat);
+    } else {
+      map.set(evt.startBeat, { ...evt, label: evt.label });
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => a.startBeat - b.startBeat);
+}
 
 export function initBeatRuler(model: BeatModel): void {
   // ── State ─────────────────────────────────────────────────────────────────────
@@ -82,6 +143,10 @@ export function initBeatRuler(model: BeatModel): void {
     return model.chapters.flatMap((ch) => ch.schedule.map((e) => e.label));
   }
 
+  function pageEventLabels(): string[] {
+    return (model.pageSchedule ?? []).map((e) => e.label);
+  }
+
   // ── Build / destroy ───────────────────────────────────────────────────────────
 
   function build(): void {
@@ -89,19 +154,25 @@ export function initBeatRuler(model: BeatModel): void {
 
     // Lane widths — probe-measured so the column is no wider than necessary.
     const numLaneW = Math.max(24, measureTextWidth(numericLabels(), "1.125em"));
+
     const evtLabels = eventLabels();
     const evtLaneW =
       evtLabels.length > 0
         ? Math.min(200, Math.max(60, measureTextWidth(evtLabels, "0.75em")))
         : 0;
-    const colW = numLaneW + evtLaneW;
+
+    const pgLabels = pageEventLabels();
+    const pageLaneW =
+      pgLabels.length > 0
+        ? Math.min(180, Math.max(60, measureTextWidth(pgLabels, "0.75em")))
+        : 0;
+
+    const colW = numLaneW + evtLaneW + pageLaneW;
 
     // Strip height matches the engine's spacer (totalVH vh).
-    // Using this instead of document.documentElement.scrollHeight keeps the
-    // coordinate space consistent: all positions are vh→px from the same origin.
     const totalH = vhToPx(model.totalVH);
 
-    // px height of one beat bar — same scale as the engine's ScrollTrigger ranges.
+    // px height of one beat bar.
     const beatH = vhToPx(model.vhPerBeat);
 
     // Outer: fixed viewport column, clips inner content.
@@ -121,8 +192,6 @@ export function initBeatRuler(model: BeatModel): void {
     });
 
     // "Now" indicator — a line pinned to the bottom of the outer column.
-    // The strip scrolls so events enter from the bottom exactly when they start,
-    // making the bottom edge the current-beat reference point.
     const nowLine = document.createElement("div");
     Object.assign(nowLine.style, {
       position: "absolute",
@@ -145,18 +214,15 @@ export function initBeatRuler(model: BeatModel): void {
       height: `${totalH}px`,
     });
 
+    // ── Chapter lanes (beat bars + chapter event spans) ────────────────────────
+
     for (const ch of model.chapters) {
       const { scrollVH } = ch;
 
-      // ── Numbered beat bars ──────────────────────────────────────────────────
-      // Placed at the chapter's absolute scroll position (scrollVH.beatStart),
-      // one bar per beat, each beatH px tall.
-      // Numbers are chapter-relative (0, 1, 2…) — reset at each chapter.
+      // Numbered beat bars — chapter-relative.
       const numBars = Math.ceil(ch.endBeat);
-
       for (let b = 0; b < numBars; b++) {
         const topPx = vhToPx(scrollVH.beatStart) + b * beatH;
-        // Fractional last bar: clamp height so it doesn't overshoot beatEnd.
         const barH = Math.min(beatH, (ch.endBeat - b) * beatH);
 
         const bar = document.createElement("div");
@@ -186,9 +252,7 @@ export function initBeatRuler(model: BeatModel): void {
         inner.appendChild(bar);
       }
 
-      // ── Exit band ───────────────────────────────────────────────────────────
-      // Dim, unnumbered region covering the fly-away range.
-      // Position and height come from the engine's absolute vh offsets.
+      // Exit band — dim, unnumbered region covering the fly-away range.
       const flyH = vhToPx(scrollVH.flyEnd - scrollVH.flyStart);
       if (flyH > 0) {
         const band = document.createElement("div");
@@ -215,18 +279,14 @@ export function initBeatRuler(model: BeatModel): void {
         });
         lbl.textContent = "chapter transition";
         band.appendChild(lbl);
-
         inner.appendChild(band);
       }
 
-      // ── Event span lane ─────────────────────────────────────────────────────
-      // Each schedule event gets a labeled band in the right lane.
-      // startBeat / endBeat are chapter-relative beats; offset them by the
-      // chapter's absolute beatStart (in vh→px) to land at the right position.
+      // Chapter event spans — grouped by startBeat to avoid overlap.
       if (evtLaneW > 0) {
         const chapterOriginPx = vhToPx(scrollVH.beatStart);
 
-        for (const evt of ch.schedule) {
+        for (const evt of groupByStartBeat(ch.schedule)) {
           const evtTopPx =
             chapterOriginPx + vhToPx(evt.startBeat * model.vhPerBeat);
           const evtH = Math.max(
@@ -245,22 +305,43 @@ export function initBeatRuler(model: BeatModel): void {
             borderTop: "1px solid rgba(30,60,180,0.35)",
             boxSizing: "border-box",
             padding: "1px 3px",
-            overflow: "visible",
+            overflow: "hidden",
           });
 
-          const lbl = document.createElement("span");
-          Object.assign(lbl.style, {
-            fontSize: "0.75em",
-            color: "rgba(20,40,160,0.9)",
-            userSelect: "none",
-            lineHeight: "1.2",
-            whiteSpace: "nowrap",
-            display: "block",
-          });
-          lbl.textContent = evt.label;
-          span.appendChild(lbl);
+          renderLines(span, evt.label, "rgba(20,40,160,0.9)");
           inner.appendChild(span);
         }
+      }
+    }
+
+    // ── Page event lane ────────────────────────────────────────────────────────
+    // Events from model.pageSchedule, positioned at page-absolute beat offsets.
+    // Grouped by startBeat; amber/orange to distinguish from chapter blue events.
+
+    if (pageLaneW > 0) {
+      for (const evt of groupByStartBeat(model.pageSchedule ?? [])) {
+        const evtTopPx = vhToPx(evt.startBeat * model.vhPerBeat);
+        const evtH = Math.max(
+          MIN_SPAN_PX,
+          vhToPx((evt.endBeat - evt.startBeat) * model.vhPerBeat),
+        );
+
+        const span = document.createElement("div");
+        Object.assign(span.style, {
+          position: "absolute",
+          top: `${evtTopPx}px`,
+          left: `${numLaneW + evtLaneW}px`,
+          width: `${pageLaneW}px`,
+          height: `${evtH}px`,
+          background: "rgba(160,80,20,0.08)",
+          borderTop: "1px solid rgba(160,80,20,0.4)",
+          boxSizing: "border-box",
+          padding: "1px 3px",
+          overflow: "hidden",
+        });
+
+        renderLines(span, evt.label, "rgba(130,60,10,0.9)");
+        inner.appendChild(span);
       }
     }
 
@@ -285,9 +366,6 @@ export function initBeatRuler(model: BeatModel): void {
   }
 
   // ── Scroll tracking ───────────────────────────────────────────────────────────
-  // "Now" is at the BOTTOM of the ruler. translateY(innerHeight - scrollY) positions
-  // the strip so that the beat at the current scroll offset aligns with the bottom
-  // edge. Events enter from the bottom when they start and exit from the top when done.
 
   function syncScroll(): void {
     pendingRAF = null;
@@ -304,8 +382,6 @@ export function initBeatRuler(model: BeatModel): void {
   window.addEventListener("scroll", onScroll, { passive: true });
 
   // ── Resize ────────────────────────────────────────────────────────────────────
-  // Rebuild on resize: vhToPx changes with window.innerHeight, so bar heights,
-  // strip height, and all event positions must be recomputed.
 
   let resizeTimer: ReturnType<typeof setTimeout> | null = null;
   window.addEventListener("resize", () => {
@@ -325,7 +401,6 @@ export function initBeatRuler(model: BeatModel): void {
     else destroy();
   }
 
-  // Keyboard shortcut: Cmd/Ctrl + Shift + \
   window.addEventListener("keydown", (e) => {
     if (!(e.metaKey || e.ctrlKey) || !e.shiftKey) return;
     if (e.key === "\\") {
@@ -333,4 +408,53 @@ export function initBeatRuler(model: BeatModel): void {
       toggle();
     }
   });
+
+  // ── Page HUD (?beats) ─────────────────────────────────────────────────────────
+  // Activated by ?beats in the URL. Positioned at bottom-left, above the
+  // chapter-level timeline HUD (which timeline-kit.ts places at bottom:12px).
+  // Shows: page beat / total · active chapter · chapter beat / ch-total
+
+  if (new URLSearchParams(window.location.search).has("beats")) {
+    const hud = document.createElement("div");
+    hud.style.cssText =
+      "position:fixed;left:12px;bottom:48px;z-index:9999;padding:6px 10px;" +
+      "font:12px/1.4 monospace;background:rgba(0,0,0,.7);color:#fff;" +
+      "border-radius:4px;pointer-events:none;";
+    document.body.appendChild(hud);
+
+    function updateHud(): void {
+      const vhPx = window.innerHeight / 100;
+      const scrollVH = window.scrollY / vhPx;
+      const pageBeat = scrollVH / model.vhPerBeat;
+
+      // Find the active chapter: the one whose scroll range includes scrollVH.
+      // Prefer the dwell window; fall back to the exit band.
+      let activeId = "—";
+      let chBeat = 0;
+      let chTotal = 0;
+      for (const ch of model.chapters) {
+        const { beatStart, flyEnd } = ch.scrollVH;
+        if (scrollVH >= beatStart && scrollVH < flyEnd) {
+          activeId = ch.id;
+          chBeat = Math.max(
+            0,
+            Math.min(
+              ch.endBeat,
+              (scrollVH - ch.scrollVH.beatStart) / model.vhPerBeat,
+            ),
+          );
+          chTotal = ch.endBeat;
+          break;
+        }
+      }
+
+      hud.textContent =
+        `page ${pageBeat.toFixed(2)} / ${model.totalVH / model.vhPerBeat}` +
+        `  ·  ${activeId}` +
+        (chTotal > 0 ? `  ·  ch ${chBeat.toFixed(2)} / ${chTotal}` : "");
+    }
+
+    window.addEventListener("scroll", updateHud, { passive: true });
+    updateHud();
+  }
 }

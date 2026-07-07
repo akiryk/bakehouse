@@ -1,40 +1,34 @@
 /**
- * Scroll engine — reads a page's chapter list and builds scroll-driven timelines
- * for fly-aways, midground color morphs, and intra-chapter beats.
+ * Scroll engine — compiles a page script into one master GSAP timeline scrubbed
+ * by one ScrollTrigger.
  *
  * Architecture:
  *   - Visual layers (midground + papers) are position:fixed — they stay in the viewport.
  *   - A scroll spacer appended to <body> gives the page real scrollable height.
- *   - ScrollTrigger scrubs each chapter's timeline via native scroll.
+ *   - One ScrollTrigger scrubs one master timeline over [0, totalVH px].
  *   - No wheel/touch interception; reduced-motion collapses to a static page.
  *
- * Scroll geometry (computed per-chapter, beats before fly-away):
- *   For each chapter:
- *     1. Beats dwell  — chapter is pinned (fixed layers do this implicitly);
- *                       beats timeline is scrubbed over this range.
- *     2. Fly-away     — paper element animated off the top; next chapter revealed.
- *   Color morph between chapter[i] and chapter[i+1] is scrubbed across chapter[i]'s
- *   fly-away window using a gsap.utils.interpolate proxy (not @property).
+ * Scroll geometry derives from the page script (home.script.ts), not from a
+ * per-chapter slot accumulator. Chapter motion files supply only the beats
+ * timeline function and an optional event schedule — no paper/enter/durationBeats.
  *
- * Color morph technique:
- *   A proxy object { t: 0 } is tweened 0→1 with scrub. onUpdate calls
+ * Color morph technique (handled in page-script compilePage):
+ *   A proxy object { t: 0 } is tweened 0→1 with the master scrub. onUpdate calls
  *   gsap.utils.interpolate(colorA, colorB)(proxy.t) and writes the result to
- *   --color-midground on :root. --color-nav-text is var(--color-midground) so
- *   the nav tracks for free.
+ *   --color-midground on :root.
  */
 
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import type { PageConfig } from "../config/pages";
-import type { MotionVars } from "./presets";
-import {
-  vhPerBeat,
-  minBeatPx,
-  beatPx,
-  chapterExitBeats,
-  endRestBeats,
-} from "../config/scroll";
+import { vhPerBeat, minBeatPx, beatPx } from "../config/scroll";
 import type { BeatModel, ChapterBeats, ScheduledEvent } from "./beat-model";
+import {
+  compilePage,
+  resolveChapterPlacements,
+  resolvePageSchedule,
+} from "./page-script";
+import type { PageScript } from "./page-script";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -49,19 +43,8 @@ export type BeatsFn = (
 ) => gsap.core.Timeline;
 
 export interface ChapterMotion {
-  /** Fly-away tween vars. Omit for chapters with no paper exit (e.g. paperless last chapter). */
-  paper?: MotionVars;
-  /** Content track tween vars (optional, rides with paper by default). */
-  content?: MotionVars;
   /** Builds the scrubbed beats timeline. Receives the [data-chapter] element. */
   beats?: BeatsFn;
-  /**
-   * How many beats this chapter's dwell window occupies.
-   * Works with or without a `beats` function — set this alone to hold the chapter
-   * static for extra scroll distance before the fly-away begins.
-   * Default when `beats` is present: 1. Default otherwise: 0.
-   */
-  durationBeats?: number;
   /**
    * Resolved event schedule for this chapter, built by resolveSchedule(SCRIPT)
    * in the chapter's motion.ts. Omit for scriptless chapters.
@@ -70,105 +53,68 @@ export interface ChapterMotion {
   schedule?: ScheduledEvent[];
 }
 
-// ─── Scroll geometry ──────────────────────────────────────────────────────────
-
-/** Default midground CSS property name */
-const DEFAULT_MIDGROUND = "--midground-tan";
-
-// ─── Internal types ───────────────────────────────────────────────────────────
-
-interface ChapterSlot {
-  beatStart: number; // vh offset where beats begin
-  beatEnd: number; // vh offset where beats end
-  flyStart: number; // vh offset where fly-away begins
-  flyEnd: number; // vh offset where fly-away ends
-}
-
-// ─── Geometry ─────────────────────────────────────────────────────────────────
-
-/**
- * Compute each chapter's scroll slot.
- * Order: beats dwell first, then fly-away (so the chapter dwells while content
- * plays, then exits to reveal the next).
- *
- * Internally accumulates in beats, then converts to vh at the edge.
- * All timing derives from config/scroll.ts — no independent vh literals.
- */
-function computeSlots(motions: ChapterMotion[]): {
-  slots: ChapterSlot[];
-  totalVH: number;
-} {
-  let cursorBeats = 0;
-  const slots: ChapterSlot[] = motions.map((m) => {
-    const beatDurationBeats = m.durationBeats ?? (m.beats ? 1 : 0);
-
-    const beatStartBeats = cursorBeats;
-    const beatEndBeats = cursorBeats + beatDurationBeats;
-    cursorBeats = beatEndBeats;
-
-    const flyDurationBeats = m.paper ? chapterExitBeats : 0;
-    const flyStartBeats = cursorBeats;
-    const flyEndBeats = cursorBeats + flyDurationBeats;
-    cursorBeats = flyEndBeats;
-
-    // Convert to vh for ScrollTrigger (beats × vhPerBeat).
-    return {
-      beatStart: beatStartBeats * vhPerBeat,
-      beatEnd: beatEndBeats * vhPerBeat,
-      flyStart: flyStartBeats * vhPerBeat,
-      flyEnd: flyEndBeats * vhPerBeat,
-    };
-  });
-  return { slots, totalVH: (cursorBeats + endRestBeats) * vhPerBeat };
-}
-
 // ─── Beat model ───────────────────────────────────────────────────────────────
 
 /**
- * Assemble the public BeatModel from computed slots.
- * All beat values are chapter-relative (each chapter starts at 0).
- * Called once, immediately after computeSlots — before any GSAP setup.
+ * Build the BeatModel from the page script's resolved chapter placements.
+ * scrollVH values derive from the script — no separate slot accumulator.
+ * Called once, before any GSAP setup, so all devtools consumers read from it.
  */
-function buildModel(
-  slots: ChapterSlot[],
-  totalVH: number,
-  motions: ChapterMotion[],
+function buildModelFromPageScript(
+  script: PageScript,
+  chapterMotions: ChapterMotion[],
   chapterIds: string[],
 ): BeatModel {
-  const chapters: ChapterBeats[] = slots.map((slot, i) => {
-    const beatWindowBeats = (slot.beatEnd - slot.beatStart) / vhPerBeat;
-    const flyBeats = (slot.flyEnd - slot.flyStart) / vhPerBeat;
+  const placements = resolveChapterPlacements(script);
+  const totalVH = script.totalBeats * vhPerBeat;
+
+  const chapters: ChapterBeats[] = chapterIds.map((id, i) => {
+    const p = placements.find((pl) => pl.id === id);
+    const dwellBeats = p?.dwellBeats ?? 0;
+    const exitBeats = p?.exitBeats ?? 0;
+
+    const dwellStartVH = (p?.dwellStartBeat ?? 0) * vhPerBeat;
+    const dwellEndVH = dwellStartVH + dwellBeats * vhPerBeat;
+    const flyStartVH =
+      p && p.exitStartBeat >= 0 ? p.exitStartBeat * vhPerBeat : dwellEndVH;
+    const flyEndVH = flyStartVH + exitBeats * vhPerBeat;
+
     return {
-      id: chapterIds[i] ?? `ch${i + 1}`,
+      id,
       index: i,
       startBeat: 0,
-      endBeat: beatWindowBeats,
-      exitBeat: beatWindowBeats + flyBeats,
-      schedule: motions[i]?.schedule ?? [],
+      endBeat: dwellBeats,
+      exitBeat: dwellBeats + exitBeats,
+      schedule: chapterMotions[i]?.schedule ?? [],
       scrollVH: {
-        beatStart: slot.beatStart,
-        beatEnd: slot.beatEnd,
-        flyStart: slot.flyStart,
-        flyEnd: slot.flyEnd,
+        beatStart: dwellStartVH,
+        beatEnd: dwellEndVH,
+        flyStart: flyStartVH,
+        flyEnd: flyEndVH,
       },
     };
   });
-  return { vhPerBeat, minBeatPx, beatPx, totalVH, chapters };
+
+  return {
+    vhPerBeat,
+    minBeatPx,
+    beatPx,
+    totalVH,
+    chapters,
+    pageSchedule: import.meta.env.DEV ? resolvePageSchedule(script) : undefined,
+  };
 }
 
-// ─── Color resolution ─────────────────────────────────────────────────────────
+// ─── Page engine ──────────────────────────────────────────────────────────────
 
-function resolveColor(prop: string): string {
-  return (
-    getComputedStyle(document.documentElement).getPropertyValue(prop).trim() ||
-    "#cfc6b6"
-  );
-}
-
-// ─── Engine ───────────────────────────────────────────────────────────────────
-
-export function initScrollEngine(
+/**
+ * Page-script engine: one master GSAP timeline scrubbed by one ScrollTrigger.
+ * Geometry derives from the page script; chapter motion files supply only beats
+ * timelines and event schedules.
+ */
+export function initPageEngine(
   config: PageConfig,
+  script: PageScript,
   chapterMotions: ChapterMotion[],
 ): BeatModel | undefined {
   if (!config.useScrollEngine) return undefined;
@@ -176,25 +122,26 @@ export function initScrollEngine(
   const papers = Array.from(
     document.querySelectorAll<HTMLElement>("[data-chapter]"),
   );
+  const papersMap = new Map<string, HTMLElement>();
+  config.chapters.forEach((ch, i) => {
+    if (papers[i]) papersMap.set(ch.id, papers[i]);
+  });
 
-  const { slots, totalVH } = computeSlots(chapterMotions);
-
-  // Assemble the public BeatModel immediately — before any GSAP setup so
-  // every subsequent consumer (ruler, ?beats HUD) reads from it, not its own walk.
-  const model = buildModel(
-    slots,
-    totalVH,
+  // Assemble the public BeatModel before any GSAP setup so all devtools
+  // consumers (ruler, ?beats HUD) read from it immediately.
+  const model = buildModelFromPageScript(
+    script,
     chapterMotions,
     config.chapters.map((c) => c.id),
   );
+
+  const totalVH = script.totalBeats * vhPerBeat;
 
   // Spacer gives the page real scroll height (fixed layers contribute none).
   const spacer = document.createElement("div");
   spacer.style.cssText = `height:${totalVH}vh;pointer-events:none;`;
   spacer.setAttribute("aria-hidden", "true");
   document.body.appendChild(spacer);
-
-  const root = document.documentElement;
 
   gsap.matchMedia().add(
     {
@@ -227,75 +174,28 @@ export function initScrollEngine(
       // are re-evaluated on every ScrollTrigger.refresh()).
       const vhToPx = (vh: number) => (vh * window.innerHeight) / 100;
 
-      // ── Fly-aways ──────────────────────────────────────────────────────────
-      papers.forEach((paper, i) => {
+      // Build child timelines (chapter-internal beats, chapter-relative).
+      const childTimelines = new Map<string, gsap.core.Timeline>();
+      config.chapters.forEach((ch, i) => {
         const motion = chapterMotions[i];
-        if (!motion?.paper) return;
-        const slot = slots[i];
-
-        gsap.to(paper, {
-          ...motion.paper,
-          scrollTrigger: {
-            trigger: spacer,
-            start: () => vhToPx(slot.flyStart),
-            end: () => vhToPx(slot.flyEnd),
-            scrub: 1.5,
-          },
-        });
+        const paper = papersMap.get(ch.id);
+        if (motion?.beats && paper) {
+          childTimelines.set(ch.id, motion.beats(paper, model.chapters[i]));
+        }
       });
 
-      // ── Color morphs ───────────────────────────────────────────────────────
-      // One morph per adjacent chapter pair, scrubbed across the outgoing
-      // chapter's fly-away window. Uses a proxy so GSAP scrubs 0→1 and we
-      // write the interpolated color to --color-midground via onUpdate.
-      // --color-nav-text is var(--color-midground) so it tracks automatically.
-      for (let i = 0; i < papers.length - 1; i++) {
-        const slot = slots[i];
-        if (slot.flyStart === slot.flyEnd) continue; // no fly-away, skip
+      // One master timeline compiled from the page script.
+      const master = compilePage(script, papersMap, childTimelines);
 
-        const propA = config.chapters[i]?.midground ?? DEFAULT_MIDGROUND;
-        const propB = config.chapters[i + 1]?.midground ?? DEFAULT_MIDGROUND;
-        const colorA = resolveColor(propA);
-        const colorB = resolveColor(propB);
-        if (colorA === colorB) continue;
-
-        const lerp = gsap.utils.interpolate(colorA, colorB) as (
-          t: number,
-        ) => string;
-        const proxy = { t: 0 };
-
-        gsap.to(proxy, {
-          t: 1,
-          ease: "none",
-          onUpdate() {
-            root.style.setProperty("--color-midground", lerp(proxy.t));
-          },
-          scrollTrigger: {
-            trigger: spacer,
-            start: () => vhToPx(slot.flyStart),
-            end: () => vhToPx(slot.flyEnd),
-            scrub: 1.5,
-          },
-        });
-      }
-
-      // ── Beats ──────────────────────────────────────────────────────────────
-      // The beats function builds a raw GSAP timeline; the engine wraps it in
-      // a scrubbed ScrollTrigger so scroll progress drives the timeline.
-      papers.forEach((paper, i) => {
-        const motion = chapterMotions[i];
-        if (!motion?.beats) return;
-        const slot = slots[i];
-        if (slot.beatStart === slot.beatEnd) return;
-
-        const tl = motion.beats(paper, model.chapters[i]);
-        ScrollTrigger.create({
-          trigger: spacer,
-          start: () => vhToPx(slot.beatStart),
-          end: () => vhToPx(slot.beatEnd),
-          scrub: 1.5,
-          animation: tl,
-        });
+      // One ScrollTrigger scrubs the entire master over the full scroll range.
+      // start/end are absolute px positions — same arrow-function pattern as the
+      // old engine (GSAP drops "vh" unit strings; functions are resize-safe).
+      ScrollTrigger.create({
+        trigger: spacer,
+        start: () => 0,
+        end: () => vhToPx(totalVH),
+        scrub: 1.5,
+        animation: master,
       });
 
       ScrollTrigger.refresh();
