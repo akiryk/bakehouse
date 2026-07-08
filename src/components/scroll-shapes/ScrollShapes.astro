@@ -5,11 +5,10 @@
  * Renders a fixed full-screen container between the mat (z-20) and the chapter
  * papers (z-30). Shapes are generated and animated at runtime by motion.ts.
  *
- * Visibility is controlled by the page script via show/hide moments:
- *   at(1, show("scroll-shapes", { over: 0.5 }))
- *   at(5, hide("scroll-shapes", { over: 0.5 }))
+ * Visibility is driven entirely by scroll position, not page-script moments:
+ * each shape has a scrollY at which it enters from below, and moves as a pure
+ * function of scrollY from there. See docs/scroll-shapes.md for the full model.
  *
- * The container starts at opacity:0. The page script fades it in when needed.
  * Remove this component's import and it's gone with no residue.
  */
 import type { ScrollShapesConfig } from "./config";

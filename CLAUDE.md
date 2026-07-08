@@ -193,6 +193,10 @@ bakehouse/
   and `config/motion.ts`.
 - **`docs/testing.md`** — the testing philosophy, the always-on `astro check` gate, tool
   choices, and where tests live / when to write them.
+- **`docs/scroll-shapes.md`** — the ambient scroll-shapes layer: config reference,
+  scroll-driven position model, and how to tune density, size mix, and timing.
+- **`docs/playwright-verification.md`** — how to drive a real headless browser to verify
+  scroll-driven and responsive behavior against the actual rendered page.
 
 ---
 

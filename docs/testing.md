@@ -20,12 +20,18 @@ Setup (one-time): `npm install -D @astrojs/check typescript`, then add
 - **Unit / logic — Vitest.** Configure it through Astro's `getViteConfig()` helper so tests
   share the project's resolution and aliases. Note: that helper needs Vitest 3.2+ (or the
   4.1 beta), so pin accordingly when you add it.
-- **Component / E2E / visual — Playwright,** deferred. Worth it only once there's real
-  interactive behavior to drive (the scroll engine, chapter transitions). Not set up yet;
-  add it when that behavior exists.
+- **Component / E2E / visual — Playwright,** deferred as an _installed, checked-in_ test
+  suite. Worth setting up permanently only once there's a stable enough interactive
+  behavior to justify a maintained spec. It's already in ad-hoc use, though: fetched via
+  `npx` (not a `package.json` dependency) to drive a real headless browser and check
+  scroll-driven/responsive changes against the actual rendered page — see
+  `docs/playwright-verification.md` for the recipe. That's a manual verification step
+  during a work session, not an automated suite; the "install it properly" decision is
+  still deferred until a checked-in E2E suite is worth maintaining.
 
-Neither is installed during the footing pass — only the `astro check` gate is. Install
-Vitest when the first unit test is actually written (see below).
+Neither Vitest nor a checked-in Playwright suite is installed during the footing pass —
+only the `astro check` gate is. Install Vitest when the first unit test is actually
+written (see below).
 
 ## Where tests live
 
