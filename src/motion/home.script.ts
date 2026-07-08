@@ -17,7 +17,7 @@ import {
   enter,
   exit,
 } from "@motion/page-script";
-import { morph, hold } from "@motion/timeline-kit";
+import { morph, hold, show, hide } from "@motion/timeline-kit";
 
 export const PAGE = definePageScript({
   sequence: [
@@ -31,6 +31,8 @@ export const PAGE = definePageScript({
       morph({ from: "--palette-yellow", to: "--palette-slate", over: 1 }),
     ),
     at(3, chapter("timeline", { dwellBeats: 14.4 })),
+    at(4, show("scroll-shapes", { over: 0.5 })),
+    at(14, hide("scroll-shapes", { over: 0.5 })),
 
     at(16.4, hold(1)),
   ],
