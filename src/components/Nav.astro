@@ -1,49 +1,41 @@
 ---
 // Nav.astro — persistent top-right navigation.
-// Always visible; fixed above the midground mat.
+// Always visible; fixed above the midground mat and scroll-shapes.
+// The white backdrop rotates like the logo's (see .logo-backdrop in Base.astro);
+// the nav content itself stays upright and in place.
 // Items, styling, and hover behavior: see docs/navigation.md.
+
+const linkClasses =
+  "block p-1.5 font-sans text-lg font-normal no-underline transition-colors duration-200 ease-in-out hover:text-ink";
 ---
 
-<nav class="site-nav" aria-label="Main navigation">
-  <ul>
-    <li><a href="#" class="current">Home</a></li>
-    <li><a href="#">About</a></li>
-    <li><a href="#">Services</a></li>
-    <li><a href="#">Work</a></li>
+<nav
+  class="fixed top-6 right-(--mat-safe-inset-x) z-25 isolate"
+  aria-label="Main navigation"
+>
+  <div class="nav-backdrop absolute bg-nav-background" aria-hidden="true"></div>
+  <ul class="relative m-0 flex list-none px-3 py-0">
+    <li><a href="#" class={`${linkClasses} text-ink`}>Home</a></li>
+    <li><a href="#" class={`${linkClasses} text-nav-text`}>About</a></li>
+    <li><a href="#" class={`${linkClasses} text-nav-text`}>Services</a></li>
+    <li><a href="#" class={`${linkClasses} text-nav-text`}>Work</a></li>
   </ul>
 </nav>
 
 <style>
-  .site-nav {
-    position: fixed;
-    top: 24px;
-    right: var(--mat-safe-inset-x);
-    z-index: var(--z-nav);
-  }
-
-  .site-nav ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-  }
-
-  .site-nav a {
-    display: block;
-    padding: 6px;
-    font-family: var(--font-sans);
-    font-size: 18px;
-    font-weight: 400;
-    color: var(--color-nav-text);
-    text-decoration: none;
-    transition: color 0.2s ease;
-  }
-
-  .site-nav a:hover {
-    color: var(--color-ink);
-  }
-
-  .site-nav .current {
-    font-color: var(--color-ink);
+  /* Tailwind has no equivalent for a rotated box whose four sides each extend
+     past its anchor by a different, non-scale amount — inset() shorthand can't
+     mix per-side values with transform in utility form. Offsets come from the
+     --nav-backdrop-inset-* tokens in global.css (tune padding per side there);
+     the -0.5deg tilt intentionally mirrors .logo-backdrop's 0.5deg in Base.astro (nav
+     tilts the opposite way, on the opposite corner). Painted
+     behind .relative ul purely via DOM order (both are positioned, z-index:auto;
+     later-in-source wins) — no z-index needed. */
+  .nav-backdrop {
+    top: calc(-1 * var(--nav-backdrop-inset-top));
+    right: calc(-1 * var(--nav-backdrop-inset-right));
+    bottom: calc(-1 * var(--nav-backdrop-inset-bottom));
+    left: calc(-1 * var(--nav-backdrop-inset-left));
+    transform: rotate(-0.5deg);
   }
 </style>

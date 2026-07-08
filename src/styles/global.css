@@ -40,6 +40,15 @@
   --paper-shadow-poke-x: 5px; /* how far the shadow juts past the card's right edge */
   --paper-shadow-poke-y: 10px; /* how far the shadow juts past the card's bottom edge */
   --paper-shadow-inset: 12px; /* how far the shadow polygon is inset from left/top/bottom */
+
+  /* Nav backdrop — the rotated white paper behind the persistent nav, mirroring
+     .logo-backdrop in Base.astro. Each side is independently adjustable so the
+     paper can extend past the nav's own box (e.g. off the right edge of the
+     viewport) without the tilt exposing a gap at any corner. */
+  --nav-backdrop-inset-top: 8px;
+  --nav-backdrop-inset-right: 60px; /* generous so the tilted edge clears the viewport */
+  --nav-backdrop-inset-bottom: 8px;
+  --nav-backdrop-inset-left: 12px;
 }
 
 @theme {
@@ -56,6 +65,9 @@
   --color-link-intro: var(--palette-blue); /* intro chapter link color */
   --color-accent: var(--palette-blush); /* color dots / nav accents */
   --color-nav-text: var(--color-mat); /* nav tracks the live mat color */
+  --color-nav-background: var(
+    --palette-white
+  ); /* backing plate so nav reads above the mat/shapes */
 
   /* ── Dividers ────────────────────────────────────────────────────────────── */
   --color-divider: color-mix(
@@ -88,8 +100,8 @@
      use the matching numeric Tailwind class (z-10, z-20, z-30, z-40) since
      Tailwind v4 does not generate named z-* utilities from @theme. */
   --z-midground: 10; /* the animated mat polygon */
-  --z-nav: 20; /* primary navigation — above mat, below content */
-  --z-shapes: 25; /* scroll-shapes ambient layer — above nav, below chapter papers */
+  --z-shapes: 20; /* scroll-shapes ambient layer — above mat, below nav */
+  --z-nav: 25; /* primary navigation — above shapes so it's never occluded */
   --z-foreground: 30; /* chapter stage — must be pointer-events:none on the container */
   --z-logo: 40; /* logo — topmost persistent UI */
 

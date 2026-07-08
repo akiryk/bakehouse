@@ -13,8 +13,11 @@ refined, configurable, and living at the right architectural level.
 
 The shapes are atmosphere, not content:
 
-- They sit **between the midground mat and the chapter papers** in the z-stack
-  (`--z-shapes: 25` — above the mat at z-20, below the foreground stage at z-30).
+- They sit **between the midground mat and the nav** in the z-stack (`--z-shapes: 20` —
+  above the mat at z-10, below the nav at z-25 and the foreground stage at z-30). The nav
+  is persistent UI, not atmosphere, so it always renders above the shapes and carries its
+  own opaque background (`--color-nav-background`) so shapes never visually wash it out —
+  see `docs/navigation.md`.
 - They are **`aria-hidden`** and carry no information — nothing is lost for
   reduced-motion or screen-reader users when they're absent.
 - They are **independent of the chapter/beat scroll engine**. Nothing about them rides
