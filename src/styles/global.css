@@ -89,6 +89,7 @@
      Tailwind v4 does not generate named z-* utilities from @theme. */
   --z-midground: 10; /* the animated mat polygon */
   --z-nav: 20; /* primary navigation — above mat, below content */
+  --z-shapes: 25; /* scroll-shapes ambient layer — above nav, below chapter papers */
   --z-foreground: 30; /* chapter stage — must be pointer-events:none on the container */
   --z-logo: 40; /* logo — topmost persistent UI */
 

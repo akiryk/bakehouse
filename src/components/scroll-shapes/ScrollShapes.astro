@@ -1,0 +1,54 @@
+---
+/**
+ * ScrollShapes — ambient decorative layer.
+ *
+ * Renders a fixed full-screen container between the mat (z-20) and the chapter
+ * papers (z-30). Shapes are generated and animated at runtime by motion.ts.
+ *
+ * Visibility is controlled by the page script via show/hide moments:
+ *   at(1, show("scroll-shapes", { over: 0.5 }))
+ *   at(5, hide("scroll-shapes", { over: 0.5 }))
+ *
+ * The container starts at opacity:0. The page script fades it in when needed.
+ * Remove this component's import and it's gone with no residue.
+ */
+import type { ScrollShapesConfig } from "./config";
+import { defaultConfig } from "./config";
+
+interface Props {
+  config?: Partial<ScrollShapesConfig>;
+}
+
+const { config = {} } = Astro.props;
+const resolvedConfig: ScrollShapesConfig = { ...defaultConfig, ...config };
+---
+
+<div
+  data-el="scroll-shapes"
+  data-config={JSON.stringify(resolvedConfig)}
+  aria-hidden="true"
+  class="scroll-shapes-layer"
+>
+</div>
+
+<style>
+  .scroll-shapes-layer {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-shapes);
+    pointer-events: none;
+    opacity: 0;
+  }
+</style>
+
+<script>
+  import { initScrollShapes } from "./motion";
+
+  const container = document.querySelector<HTMLElement>(
+    "[data-el='scroll-shapes']",
+  );
+  if (container) {
+    const config = JSON.parse(container.dataset.config ?? "{}");
+    initScrollShapes(container, config);
+  }
+</script>
