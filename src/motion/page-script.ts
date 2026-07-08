@@ -61,7 +61,7 @@ export interface EnterMoment {
 
 /**
  * Animate a chapter's [data-chapter] paper off the screen.
- * Defaults match flyUpAccelerate() from presets.
+ * Defaults come from scroll.flyUp in config/scroll.ts.
  */
 export interface ExitMoment {
   kind: "exit-chapter";

@@ -1,6 +1,6 @@
 # Architecture
 
-How the site is structured and — just as important — how it stays *un*-locked so we can
+How the site is structured and — just as important — how it stays _un_-locked so we can
 break our own rules later without hacking at shared code.
 
 ---
@@ -13,11 +13,11 @@ Every animated page renders three stacked layers, back to front:
    `Base.astro`. It rarely changes.
 
 2. **Midground** — a near-rectangular SVG polygon (~8 vertices) filled with
-   `--color-midground`. It does **not** translate as a whole; instead each vertex drifts
+   `--color-mat`. It does **not** translate as a whole; instead each vertex drifts
    independently within a small range, so the edges feel quietly alive. This lives in
    `Base.astro` too, so it **persists across chapters** — papers come and go in front of
    it while it stays put. Its motion is ambient and continuous, unrelated to scroll.
-   See `motion.md` → "The ambient octagon."
+   See `motion.md` → "The ambient mat."
 
    > "Octagon" is shorthand. The exact vertex count and positions are a tunable detail,
    > not a contract. Start rough; refine later. It should read as a rectangle at a glance.
@@ -44,7 +44,12 @@ about how many there are.
 
 - **content** — `Content.astro`, the markup. Organized as optional `header` / `main` /
   `footer` slots, where `main` accepts arbitrary markup.
-- **motion** — `motion.ts`, which describes how the chapter enters and leaves.
+- **motion** — `motion.ts`, which describes the chapter's own intra-chapter reveals (a
+  `beats` timeline, chapter-relative). How the chapter _enters and leaves the page_ — its
+  paper's fly-away, its arrival, its dwell length — is placed one level up, in the page's
+  script (`chapter()`/`enter()`/`exit()` in `pages.ts`'s page script; see `motion.md`).
+  This is the two-level model: chapter scripts stay chapter-relative, the page script is
+  the only place that knows where chapters sit.
 
 They live side by side in the chapter's folder but never depend on each other. You can
 swap a chapter's content from a paragraph to an image grid without touching its motion,
@@ -55,7 +60,7 @@ and retime its motion without touching its content.
 ## The engine's contract is deliberately small
 
 The scroll engine knows about exactly one thing: **elements that enter and leave on
-scroll.** It does *not* know what a "paper" is, or that papers fly upward. Each chapter
+scroll.** It does _not_ know what a "paper" is, or that papers fly upward. Each chapter
 hands the engine a small set of hooks (an enter and an exit), and the engine sequences
 them against scroll progress via a pinned ScrollTrigger.
 
@@ -87,7 +92,7 @@ You never edit shared code to climb down this ladder.
 
 ## The one honest exception
 
-There is exactly one kind of change that *does* mean editing shared code: changing the
+There is exactly one kind of change that _does_ mean editing shared code: changing the
 engine's **fundamental default behavior** for everyone — e.g. deciding chapters should
 cross-fade and overlap instead of fly-away-then-arrive. That's an edit to
 `motion/engine.ts` and/or the default preset. But because the engine is a single

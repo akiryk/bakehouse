@@ -1,48 +1,20 @@
 /**
- * Reusable motion factories. Each returns GSAP tween vars the engine applies.
- * Values that affect feel come from config/motion.ts, not hardcoded here.
+ * Reusable motion factories for a chapter's beats() timeline. Values that affect
+ * feel come from config/scroll.ts or config/octagon.ts, not hardcoded here.
  *
- * Beat presets (fadeInUpFrom/To, shiftUp) are used inside a chapter's beats()
- * function to build the scrubbed timeline. Use them with gsap.fromTo():
+ * Used inside a chapter's beats() function to build the scrubbed timeline. Use
+ * them with gsap.fromTo():
  *
  *   tl.fromTo(el, fadeInUpFrom(), fadeInUpTo());   // reveal
  *   tl.to(el, shiftUp(), "<");                     // shift while next reveals
+ *
+ * Paper-level motion (a chapter's own fly-away/entrance) is no longer a
+ * per-chapter preset — it's authored in the page script via enter()/exit()
+ * (see src/motion/page-script.ts and docs/motion.md).
  */
 import "gsap";
-import { scroll as cfg } from "../config/scroll";
 
 export type MotionVars = gsap.TweenVars;
-
-// ─── Paper presets ────────────────────────────────────────────────────────────
-
-/** Default paper exit: slow lift then rapid acceleration off the top. */
-export function flyUpAccelerate(overrides?: MotionVars): MotionVars {
-  return {
-    y: `-${cfg.flyUp.distance}vh`,
-    ease: cfg.flyUp.ease,
-    ...overrides,
-  };
-}
-
-/** Paper entering from below into resting position. */
-export function paperRise(overrides?: MotionVars): MotionVars {
-  return {
-    y: "0%",
-    ease: "power2.out",
-    ...overrides,
-  };
-}
-
-/** Content fading in, optionally delayed relative to its paper. */
-export function fadeIn(options?: { delay?: number } & MotionVars): MotionVars {
-  const { delay = 0, ...rest } = options ?? {};
-  return {
-    opacity: 1,
-    ease: "power1.out",
-    delay,
-    ...rest,
-  };
-}
 
 // ─── Beat presets ─────────────────────────────────────────────────────────────
 

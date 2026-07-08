@@ -18,17 +18,6 @@ export function beatPx(win: { innerHeight: number }): number {
   return Math.max(minBeatPx, (vhPerBeat / 100) * win.innerHeight);
 }
 
-// ─── Inter-chapter pacing ─────────────────────────────────────────────────────
-//
-// These were raw-vh constants in engine.ts; now expressed in beats so changing
-// vhPerBeat automatically scales everything together.
-
-/** Scroll travel (beats) for a chapter's fly-away exit. Was TRAVEL_PER_CHAPTER_VH = 150. */
-export const chapterExitBeats = 1;
-
-/** Quiet rest (beats) appended after the last chapter. Was REST_VH = 100. */
-export const endRestBeats = 1;
-
 // ─── Scroll motion ────────────────────────────────────────────────────────────
 //
 // flyUp moved from config/motion.ts — it governs scroll-driven paper exits,

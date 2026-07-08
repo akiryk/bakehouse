@@ -12,12 +12,17 @@ content reveals, then its paper flies away as the next arrives) is driven by **s
 progress** — not by intercepting wheel or touch events. This keeps keyboard navigation,
 momentum, and mobile behavior intact, and lets us honor reduced-motion cleanly.
 
-`engine.ts` responsibilities:
+`engine.ts` (`initPageEngine`) responsibilities:
 
-- Read the active page's chapter list (from `pages.ts`).
-- Compute scroll geometry: each chapter gets a beats-dwell window then a fly-away window.
-- Build scrubbed ScrollTriggers for fly-aways, color morphs, and beats.
-- Do nothing on pages where `useScrollEngine: false`.
+- Read the active page's config (from `pages.ts`) and its page script (e.g.
+  `home.script.ts`, authored with `page-script.ts`'s `definePageScript`/`at()`).
+- Resolve the page script into placed moments (`chapter`, `enter`, `exit`, `morph`,
+  `hold`, `show`, `hide`) at page-absolute beats — this replaces the old fixed
+  per-chapter dwell-then-fly formula; scroll geometry is now _derived from what the
+  script places_, not computed from constants.
+- Compile the resolved script into **one master GSAP timeline** and scrub it with a
+  **single ScrollTrigger** over the page's total scroll height (`script.totalBeats × vhPerBeat`).
+- Do nothing on pages where `useScrollEngine: false`, or that never call `initPageEngine`.
 
 The engine knows only "things that enter and leave on scroll." It does not know what a
 paper is. (See `architecture.md` → the engine's contract.)
@@ -26,61 +31,83 @@ paper is. (See `architecture.md` → the engine's contract.)
 
 ## Scroll geometry
 
-For each chapter, in order:
+Geometry is authored, not computed from fixed constants — it comes directly from where
+things are placed in the page script (`src/motion/home.script.ts`, using the `at()` /
+`chapter()` / `enter()` / `exit()` vocabulary from `src/motion/page-script.ts`):
 
-1. **Beats dwell** (`durationBeats` beats, default 1 if a `beats` function is present,
-   0 otherwise) — the chapter is visually frontmost (fixed layers handle this implicitly);
-   the beats timeline scrubs across this window.
-2. **Fly-away** (`chapterExitBeats` = 1.5 beats) — the paper element animates off the
-   top; the next chapter is revealed beneath.
+```ts
+export const PAGE = definePageScript({
+  sequence: [
+    at(0, chapter("intro")), // intro's dwell window: 0 beats
+    at(0, exit("intro", { over: 1 })), // intro's paper flies off over 1 beat
+    at(0.75, enter("services", { over: 0.75 })), // services' paper rises in
+    at(2.0, exit("services", { over: 1 })),
+    at(3, chapter("timeline", { dwellBeats: 14.4 })),
+    at(16.4, hold(1)), // trailing rest
+  ],
+});
+```
 
-`durationBeats` is **in beats** — the same unit as everything else in a chapter's
-`motion.ts`. The engine converts to px internally; you never write raw vh or px here.
-Chapters with no `paper` motion skip phase 2; `durationBeats` still works without a
-`beats` function (useful to hold a chapter static for extra scroll distance).
+- **`chapter(id, { dwellBeats })`** places a chapter's dwell window at a page-absolute
+  beat. During that window the chapter's own `beats()` timeline (from its `motion.ts`) is
+  scrubbed, chapter-relative. `dwellBeats` defaults to 0 for chapters with no beats.
+- **`exit(id, { over, to?, ease? })`** / **`enter(id, { over, from?, ease? })`** animate a
+  chapter's `[data-chapter]` paper off/on screen. Defaults come from `scroll.flyUp` in
+  `config/scroll.ts` (`distance: 110vh`, `ease: "power2.in"`) unless overridden.
+- **`morph({ from, to, over })`** and **`hold(beats)`** place a color morph or dead air at
+  an absolute beat — see **Midground color morph** below.
+
+The engine (`buildModelFromPageScript` in `engine.ts`) reads these placements back out to
+build each chapter's `scrollVH` window for `ScrollTrigger` and devtools — there is no
+separate slot-accumulator pass; the resolved script _is_ the geometry.
 
 All ScrollTrigger start/end positions in the engine use arrow functions that compute
-px at trigger time (`() => slot.flyStart * window.innerHeight / 100`). GSAP does not
-parse `vh` in position strings — it strips the unit suffix and treats the number as raw
-px, which would make all scroll ranges wildly wrong.
+px at trigger time (`() => vhToPx(totalVH)`). GSAP does not parse `vh` in position
+strings — it strips the unit suffix and treats the number as raw px, which would make all
+scroll ranges wildly wrong.
 
 ---
 
-## A chapter's motion: three tracks
+## A chapter's motion: two fields
 
-Each chapter's `motion.ts` can declare up to three tracks plus a duration:
+A chapter's `motion.ts` is much smaller than the page script it's placed by. It declares
+only:
 
-- **paper** — the foreground rectangle's fly-away. Omit for paperless chapters or a
-  chapter that stays on screen (e.g. the last chapter).
-- **content** — the markup inside the paper (optional; rides with paper by default).
-- **beats** — a function that builds a scrubbed GSAP timeline for intra-chapter reveals.
-- **durationBeats** — how many beats this chapter's dwell window occupies (in beats).
-  Default: 1 when `beats` is present, 0 otherwise. Works without a `beats` function.
+- **beats** — an optional function that builds a scrubbed GSAP timeline for intra-chapter
+  reveals. Receives the `[data-chapter]` container and the chapter's `ChapterBeats` (for
+  devtools). Omit for chapters with no intra-chapter reveals.
+- **schedule** — an optional pre-resolved event schedule (built with `resolveSchedule()` in
+  `timeline-kit.ts`) for the `?beats` devtools HUD. Omit for scriptless chapters.
+
+Everything about _where a chapter sits on the page_ — its dwell length, when its paper
+flies away, when it enters — is authored in the page script instead (`chapter()`, `enter()`,
+`exit()` in `home.script.ts`; see **Scroll geometry** above), not here. This is the
+two-level model from Epic 15: chapter scripts stay chapter-relative; only the page script
+knows where chapters sit.
 
 Always type the export as `ChapterMotion` so TypeScript surfaces all available fields:
 
 ```ts
 import type { ChapterMotion } from "../../../motion/engine";
-import { flyUpAccelerate } from "../../../motion/presets";
+import { compile, resolveSchedule } from "../../../motion/timeline-kit";
+import { SCRIPT } from "./script";
 
 const motion: ChapterMotion = {
-  paper: flyUpAccelerate(), // fly-away
-  durationBeats: 2, // hold for 2 beats before the fly-away begins
-  // content: fadeIn({ delay: 0.2 }),   // optional content offset
+  schedule: import.meta.env.DEV ? resolveSchedule(SCRIPT) : undefined,
+  beats(container, chapterBeats) {
+    return compile(container, SCRIPT, chapterBeats);
+  },
 };
 
 export default motion;
 ```
 
+A chapter with no intra-chapter reveals at all (just a paper that arrives and later flies
+away) exports an empty `{}` — see `chapters/home/intro/motion.ts`.
+
 ---
 
 ## Presets: `src/motion/presets.ts`
-
-### Paper presets
-
-- `flyUpAccelerate()` — default paper exit: slow lift, rapid acceleration off top.
-- `paperRise()` — paper entering from below into resting position.
-- `fadeIn({ delay })` — content easing in, optionally offset from its paper.
 
 ### Beat presets
 
@@ -108,7 +135,8 @@ beats(container) {
 
   return tl;
 },
-durationBeats: 1.5,    // beats allocated to this chapter's dwell window
+// dwell length for this window is set where the chapter is placed in the page
+// script — e.g. at(0, chapter("intro", { dwellBeats: 1.5 })) — not here.
 ```
 
 Mark beat elements in the DOM with `data-beat="a"`, `data-beat="b"`, etc. so the
@@ -118,34 +146,48 @@ Mark beat elements in the DOM with `data-beat="a"`, `data-beat="b"`, etc. so the
 
 ## Midground color morph
 
-Each chapter declares its midground color via a CSS palette token in `pages.ts`.
-As the outgoing chapter flies away, the engine scrubs `--color-midground` from the
-outgoing chapter's color to the incoming chapter's color.
+Color choreography is authored explicitly in the page script (or a chapter's own
+`script.ts`, for an intra-chapter morph) as a `morph({ from, to, over })` moment placed
+with `at()` — it's no longer a static field a chapter declares. As the moment plays, the
+engine scrubs `--color-mat` (not `--color-midground`) from one palette token's resolved
+color to another's:
+
+```ts
+at(0, morph({ from: "--palette-tan", to: "--palette-yellow", over: 1 })),
+```
 
 **Technique:** a proxy `{ t: 0 }` is tweened 0→1 with `scrub`. `onUpdate` calls
 `gsap.utils.interpolate(colorA, colorB)(proxy.t)` and writes the result to
-`--color-midground` on `:root`. `@property` was not used — GSAP scrub sets properties
+`--color-mat` on `:root`. `@property` was not used — GSAP scrub sets properties
 directly (not via CSS transitions), so `@property` would add no benefit and would
-require browser support checking.
+require browser support checking. This compiler lives in `page-script.ts`'s `morph` case
+(page scope) and `timeline-kit.ts`'s `morph` case (chapter scope) — both write the same
+property via the same technique.
 
-`--color-nav-text: var(--color-midground)` in `global.css` means the nav color
+`--color-nav-text: var(--color-mat)` in `global.css` means the nav color
 tracks the morph automatically with no additional animation.
 
-Palette tokens live in `global.css` under `/* Midground color palette */`:
+Palette tokens live in `global.css`'s `:root` block under `/* Color palette */`:
 
 ```css
 :root {
-  --midground-tan: #cfc6b6;
-  --midground-slate: #c1caca;
-  --midground-slate-deep: #8a9ba5; /* chapter 2 beat-2 target */
+  --palette-tan: #cfc6b6;
+  --palette-sage: #d9dccc;
+  --palette-yellow: #e6d063;
+  --palette-slate: #8a9ba5;
+  /* … */
 }
 ```
 
-Add new palette entries there; reference them in `pages.ts`.
+Add new palette entries there; reference them by name in a `morph()` moment.
 
 ### Intra-beat midground morphs
 
-The same proxy technique works **inside a `beats()` timeline**, not just at chapter transitions. Add a `proxy` tween to the returned timeline at whatever beat position you need:
+`timeline-kit.ts` already provides a `morph({ from, to, over })` moment for a chapter's own
+`sequence` — reach for that first (see `script.ts` examples in `chapters/home/timeline/`).
+The same proxy technique it uses can also be hand-rolled directly **inside a `beats()`
+timeline**, for cases outside that DSL. Add a `proxy` tween to the returned timeline at
+whatever beat position you need:
 
 ```ts
 beats(container) {
@@ -160,7 +202,7 @@ beats(container) {
     t: 1,
     ease: "power1.inOut",
     onUpdate() {
-      document.documentElement.style.setProperty("--color-midground", interpolate(proxy.t));
+      document.documentElement.style.setProperty("--color-mat", interpolate(proxy.t));
     },
   }, 0.55);
 
@@ -174,8 +216,8 @@ The engine's ScrollTrigger scrubs the entire returned timeline, including the co
 
 ```ts
 const style = getComputedStyle(document.documentElement);
-const colorFrom = style.getPropertyValue("--midground-slate").trim();
-const colorTo = style.getPropertyValue("--midground-slate-deep").trim();
+const colorFrom = style.getPropertyValue("--palette-slate").trim();
+const colorTo = style.getPropertyValue("--palette-blue").trim();
 ```
 
 ---
@@ -256,7 +298,7 @@ symmetric, edge-parallel bezier handles. The **corners have none** (sharp joins)
   scale relative to it.
 - **Corner control points** = the corner vertex itself → zero tangent at corners → sharp join.
 
-The single dial is `edgeCurve` in `config/motion.ts` (default `0.035` = 3.5%).
+The single dial is `edgeCurve` in `config/octagon.ts` (default `0.035` = 3.5%).
 
 Each edge becomes two cubic segments: `corner → C corner cp2=center−handle center` and
 `center → C cp1=center+handle corner corner`. This gives a smooth bow peaking at the

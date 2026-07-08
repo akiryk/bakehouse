@@ -94,7 +94,8 @@ bakehouse/
     styles/
       global.css             ← Tailwind entry + @theme tokens  (ALL colors, fonts, type)
     config/
-      motion.ts              ← motion tokens: wobble ranges, easings, durations
+      octagon.ts             ← mat wobble/shape tokens: motionRadius, defaultSpeed, edgeCurve
+      scroll.ts              ← beat unit + scroll/fly-away timing: vhPerBeat, minBeatPx, scroll.flyUp
       pages.ts               ← each page's ordered chapter list + useScrollEngine flag
     layouts/
       Base.astro             ← background + persistent midground octagon + <slot/>
@@ -116,7 +117,8 @@ bakehouse/
 **Where do I change X?**
 
 - A color, font, or type token → `src/styles/global.css` (the `@theme` block)
-- A wobble range or motion timing → `src/config/motion.ts`
+- A mat wobble range or shape parameter → `src/config/octagon.ts`
+- Scroll/beat timing (fly-away distance, ease) → `src/config/scroll.ts`
 - A chapter's copy or images → that chapter's `Content.astro`
 - A chapter's animation → that chapter's `motion.ts`
 - A motion you want to reuse everywhere → `src/motion/presets.ts`
@@ -139,10 +141,11 @@ bakehouse/
     design-system values live.
 
   Motion and behavior values (wobble ranges, easings, durations) live in
-  `src/config/motion.ts`. **Never hardcode a color, font, size, timing, or shadow in a
-  component** — reach for a token (a Tailwind utility, a CSS variable, or a value from
-  `motion.ts`). If a value affects how the site looks or feels, it belongs in a token
-  home, not inline. **This rule applies to every chapter**, not just shared components —
+  `src/config/octagon.ts` and `src/config/scroll.ts`. **Never hardcode a color, font, size,
+  timing, or shadow in a component** — reach for a token (a Tailwind utility, a CSS
+  variable, or a value from one of those config files). If a value affects how the site
+  looks or feels, it belongs in a token home, not inline. **This rule applies to every
+  chapter**, not just shared components —
   chapter-specific colors and shadows (like `--color-tl-year`) belong in `global.css`
   so they're findable, reusable, and consistent with the rest of the system.
 
@@ -187,10 +190,10 @@ bakehouse/
   escape-hatch ladder that keeps the framework from locking us in.
 - **`docs/authoring-content.md`** — add, edit, reorder, or remove chapters; the
   `Content.astro` slot shape; the `pages.ts` manifest.
-- **`docs/motion.md`** — the scroll engine, the two-track (paper / content) model,
-  presets, reduced-motion handling, and the ambient octagon wobble.
+- **`docs/motion.md`** — the scroll engine, the page-script/chapter-beats two-level
+  model, presets, reduced-motion handling, and the ambient mat wobble.
 - **`docs/design-tokens.md`** — the Tailwind `@theme` tokens, the Adobe Caslon Pro setup,
-  and `config/motion.ts`.
+  and `config/octagon.ts` / `config/scroll.ts`.
 - **`docs/testing.md`** — the testing philosophy, the always-on `astro check` gate, tool
   choices, and where tests live / when to write them.
 - **`docs/scroll-shapes.md`** — the ambient scroll-shapes layer: config reference,

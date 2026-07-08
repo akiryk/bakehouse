@@ -13,16 +13,9 @@ export const pages: Record<string, PageConfig> = {
   home: {
     useScrollEngine: true,
     chapters: [
-      {
-        id: "intro",
-        motionPath: "home/01-intro/motion",
-        midground: "--midground-tan",
-      },
-      {
-        id: "placeholder",
-        motionPath: "home/02-placeholder/motion",
-        midground: "--midground-slate",
-      },
+      { id: "intro", motionPath: "home/intro/motion" },
+      { id: "services", motionPath: "home/services/motion" },
+      { id: "timeline", motionPath: "home/timeline/motion" },
     ],
   },
 };
@@ -33,50 +26,55 @@ export const pages: Record<string, PageConfig> = {
 - **Remove a chapter** → delete its entry (and, when you're sure, its folder).
 - **Make a page scroll normally** → `useScrollEngine: false`.
 
-The `midground` field references a CSS palette token from `global.css`. The engine
-interpolates `--color-midground` between adjacent chapters' values as the transition
-scrolls. Omit it to default to `--midground-tan`.
+`pages.ts` only declares _which chapters exist and in what order_ — it doesn't say
+anything about timing, entry/exit motion, or color. That's all authored in the page's
+script (see **Declaring a midground color** and `docs/motion.md`'s "Scroll geometry").
 
 ### Wiring chapters into a page
 
-Each `.astro` page imports its chapter content and motion explicitly:
+Each `.astro` page imports its chapter content and motion explicitly, plus the page script
+that places them on the scroll timeline:
 
 ```astro
 ---
 import Base from "../layouts/Base.astro";
-import IntroContent from "../chapters/home/01-intro/Content.astro";
-import PlaceholderContent from "../chapters/home/02-placeholder/Content.astro";
+import IntroContent from "../chapters/home/intro/Content.astro";
+import ServicesContent from "../chapters/home/services/Content.astro";
 ---
 
 <Base>
   <IntroContent />
-  <PlaceholderContent />
+  <ServicesContent />
 </Base>
 
 <script>
-  import { initScrollEngine } from "../motion/engine";
+  import { initPageEngine } from "../motion/engine";
   import { pages } from "../config/pages";
-  import introMotion from "../chapters/home/01-intro/motion";
-  import placeholderMotion from "../chapters/home/02-placeholder/motion";
+  import { PAGE } from "../motion/home.script";
+  import introMotion from "../chapters/home/intro/motion";
+  import servicesMotion from "../chapters/home/services/motion";
 
-  initScrollEngine(pages.home, [introMotion, placeholderMotion]);
+  initPageEngine(pages.home, PAGE, [introMotion, servicesMotion]);
 </script>
 ```
 
-The motion array must match the `chapters` order in `pages.ts`.
+The motion array passed to `initPageEngine` must match the `chapters` order in `pages.ts`.
+`PAGE` (the resolved page script, built with `definePageScript`/`at()` in
+`src/motion/<page>.script.ts`) is what actually places each chapter's dwell window and its
+enter/exit motion on the scroll timeline — see `docs/motion.md`.
 
 ---
 
 ## A chapter folder
 
 ```
-src/chapters/<page>/<NN-name>/
+src/chapters/<page>/<name>/
   Content.astro   ← the markup (imports Chapter.astro and uses its slots)
-  motion.ts       ← how it enters, leaves, and reveals its content
+  motion.ts       ← its beats() timeline and event schedule, if any
 ```
 
-The `NN-` prefix (01-, 02-) is for human ordering on disk only; the real order is
-the list in `pages.ts`.
+Folder names match the chapter's `id` directly (e.g. `home/intro/`, `home/services/`) —
+there's no numeric ordering prefix on disk; the real order is the list in `pages.ts`.
 
 ---
 
@@ -129,17 +127,23 @@ so it reads against the midground tan or slate.
 
 ## Declaring a midground color
 
-A chapter's midground color is declared in `pages.ts`, not in the component:
+A chapter's midground color isn't declared statically anywhere — it's authored as a
+`morph({ from, to, over })` moment, placed with `at()` in the page script (or a chapter's
+own `script.ts`, for an intra-chapter morph), scrubbing `--color-mat` between two palette
+tokens as the transition scrolls:
 
 ```ts
-{ id: "my-chapter", motionPath: "…", midground: "--midground-slate" }
+// src/motion/home.script.ts
+at(0, morph({ from: "--palette-tan", to: "--palette-yellow", over: 1 })),
 ```
 
-Available palette tokens are in `global.css` under `/* Midground color palette */`.
-To add a new color:
+Available palette tokens are in `global.css`'s `:root` block under `/* Color palette */`
+(`--palette-tan`, `--palette-sage`, `--palette-slate`, …). To add a new color:
 
 1. Add a token to the `:root` palette block in `global.css`.
-2. Reference it by name in `pages.ts`.
+2. Reference it by name in a `morph()` moment in the relevant page or chapter script.
+
+See `docs/motion.md` → "Midground color morph" for the full technique.
 
 ---
 
@@ -168,8 +172,6 @@ import type { ChapterMotion } from "../../../motion/engine";
 import { fadeInUpFrom, fadeInUpTo, shiftUp } from "../../../motion/presets";
 
 const motion: ChapterMotion = {
-  durationBeats: 1.5, // beats allocated to this chapter's dwell window
-
   beats(container) {
     const a = container.querySelector("[data-beat='a']");
     const b = container.querySelector("[data-beat='b']");
@@ -186,8 +188,18 @@ const motion: ChapterMotion = {
 export default motion;
 ```
 
-The engine wraps the returned timeline in a scrubbed ScrollTrigger. You do not add
-`scrollTrigger` to the timeline itself.
+### 3. Give it a dwell window in the page script
+
+The chapter's _own_ `motion.ts` only builds the timeline — how long its dwell window is on
+the page is set where it's placed in the page script:
+
+```ts
+// src/motion/home.script.ts
+at(0, chapter("my-chapter", { dwellBeats: 1.5 })),
+```
+
+The engine wraps the returned `beats()` timeline in a scrubbed ScrollTrigger for that
+window. You do not add `scrollTrigger` to the timeline itself.
 
 ### Reduced motion
 

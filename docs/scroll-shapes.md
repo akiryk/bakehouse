@@ -292,8 +292,9 @@ width: { min: 1, max: 10 }, height: { min: 10, max: 30 } }]` for 5 large shapes 
   scroll 1:1; lower values drift more slowly, reading as "further back").
 - **Opacity (color is not configurable per-shape)** → the `opacity` range. Color always
   tracks the live `--color-mat` token via `mix-blend-mode: multiply` — see **Color** above.
-  To change the _palette_ shapes morph through, edit the midground's own color stops
-  (`pages.ts` / the chapter's morph config), not anything in `scroll-shapes/`.
+  To change the _palette_ shapes morph through, edit the midground's own color stops —
+  the `morph()` moments in `home.script.ts` (or a chapter's own `script.ts` for an
+  intra-chapter morph) — not anything in `scroll-shapes/`.
 - **The z-index itself** → `--z-shapes` in `global.css`'s `@theme` block. Don't hardcode
   a numeric z-index in the component.
 - **Adding the layer to a new page** → import `ScrollShapes` and `defaultConfig`, build a
