@@ -9,12 +9,12 @@ screen, content fades, the mat springs back, the new paper fades in.
 **Depends on:** Epic 16 (scroll-shapes — the exit sequence fades that layer) and the
 ambient mat in `motion/octagon.ts` (Architecture → "The ambient mat" in `docs/motion.md`).
 
-**In scope:** `src/pages/about.astro`; `<ClientRouter />` wired into `Base.astro`;
-`transition:persist` on the mat, nav, and logo; a refactor of `octagon.ts` to expose an
-imperative expand/spring-back controller alongside its existing ambient wobble; a new
-`page-transitions.ts` motion module driven by Astro's transition lifecycle; dynamic
-nav active-state; a taller-paper token for About; Home's nav link becoming real
-(`href="/"`).
+**In scope:** `src/pages/about.astro` as a real scroll-engine chapter (its own
+`about.script.ts` + `chapters/home/about/motion.ts`); `<ClientRouter />` wired into
+`Base.astro`; `transition:persist` on the mat, nav, and logo; a refactor of `octagon.ts` to
+expose an imperative expand/spring-back controller alongside its existing ambient wobble; a
+new `page-transitions.ts` motion module driven by Astro's transition lifecycle; dynamic
+nav active-state; Home's nav link becoming real (`href="/"`).
 
 **Out of scope:** Services and Work nav items (stay `href="#"` placeholders); any change
 to the home page's own scroll-engine chapter motion; ScrollShapes on the About page;
@@ -42,7 +42,13 @@ router's lifecycle events instead of the router's built-in transition directives
 
 - **About's resting mat color** is the same tan as intro (`--palette-tan`) — About reads
   as a continuation of the opening tone, no new palette token needed yet.
-- **About's paper is taller so that it accommodates more content**. In fact, the paper should extend beyond the bottom of the browser. When the user scrolls, the paper will need to scroll by steadily so that content can be read/consumed -- we don't want to hld the paper completely still for a "dwell" period and then have it fly away all at once.
+- **About's paper height follows its content**, and if that's taller than one viewport, the
+  paper scrolls by steadily as the user scrolls — no fixed-height token, no held "dwell"
+  then all-at-once fly-away. Mechanically this stays inside the existing scroll-engine
+  model: About is a real chapter whose `beats()` timeline continuously scrubs the paper's
+  own `y` translate across a long dwell window (the same technique the `timeline` chapter
+  already uses to scrub its year-strip), with a hand-tuned duration/ease rather than a
+  discrete exit — see **The About page** below.
 - **The enter animation (mat settle + paper fade-in) plays on every load** — a direct/cold
   load of `/about` (typed URL, refresh, new tab) gets the same sequence as an in-app nav
   click, not just an instantly-placed paper. This also means the enter logic needs exactly
@@ -184,18 +190,35 @@ the browser back button.
 
 ### The About page
 
-- `src/pages/about.astro` — `Base` layout, `StageLeft` + `Chapter` (paper, matching
-  intro's shell), no `ScrollShapes`, and **no scroll-engine wiring at all** — it is not
-  added to `pages.ts` and never calls `initPageEngine`. This is escape-hatch rung 4/5 from
-  `docs/architecture.md`: a static page with one paper doesn't need the chapter/beats
-  machinery, and forcing it through `pages.ts` would mean a `chapters` array of length one
-  and a `useScrollEngine: false` that engine.ts never even consults for a page that doesn't
-  call it. Simpler to just not opt in.
-- `Chapter.astro` gains an optional `minHeight` prop (a CSS var name, default
-  `--min-h-chapter`) so About can pass `minHeight="--min-h-about"` without touching the
-  component's existing callers.
-- Copy: title "About" (not "Dear **\_\_**,"), a few paragraphs of placeholder text at the
-  same size/color as intro's (`text-2xl`, `text-ink`).
+**Paper height follows content, and the paper scrolls by steadily as the user scrolls** —
+but this stays inside the existing scroll-engine model rather than switching to native
+document scroll. About's paper lives in `.foreground-stage`/`StageLeft` exactly like every
+other chapter (fixed, pinned — the exit-sequence fade target below doesn't need to change),
+but instead of a dwell-then-fly-away, its own `beats()` timeline continuously scrubs the
+**paper element's own `y` translate** from `0` to a hand-tuned negative distance across a
+long `dwellBeats` window. This is the same technique the `timeline` chapter already uses to
+scrub its year-strip's `y` inside `beats()` — just applied to the paper itself instead of a
+`[data-el="tape"]` child.
+
+- `src/config/pages.ts` gains an `about` page entry (`useScrollEngine: true`, one chapter).
+- `src/motion/about.script.ts` (mirroring `home.script.ts`) places `at(0, chapter("about",
+{ dwellBeats: N }))` — no `exit()` moment; About is a dead end, nothing hands off to a
+  next chapter, so the paper doesn't fly fully away. Scroll simply ends when the dwell
+  window does (optionally with a trailing `hold()` for a soft landing).
+- `src/chapters/home/about/motion.ts`'s `beats()` scrubs the `[data-chapter]` paper's own
+  `y` from `0` to `-X` (both `N` beats and `X`/ease are hand-tuned constants local to this
+  file, analogous to `timeline`'s `CONFIG.pitch`/`enterFrom` — not runtime-measured; tuned
+  by eye against the actual placeholder copy, same as every other feel value in this
+  codebase).
+- No new height token: `--min-h-chapter`'s existing `60vh` floor still applies via
+  `Chapter.astro`, unmodified — height comes from content, that's the whole point.
+- Copy: title "About" (not "Dear **\_\_**,"), enough placeholder paragraphs (at the same
+  size/color as intro's — `text-2xl`, `text-ink`) that the paper is visibly taller than one
+  viewport, so the scrub is actually exercised when verifying this step.
+
+Because the paper never leaves `.foreground-stage`, the cross-page exit sequence's fade
+target (`.foreground-stage` → opacity 0) is unchanged and works identically for both pages
+— no new `[data-el]` marker needed.
 
 ### Reduced motion
 
@@ -211,19 +234,21 @@ destination content is simply present, correct, and immediately visible.
 ```
 src/
   pages/
-    about.astro                  ← new
+    about.astro                  ← new: StageLeft + Chapter, wired to initPageEngine
+  chapters/home/about/
+    Content.astro                ← new: title "About" + placeholder copy
+    motion.ts                    ← new: beats() scrubs the paper's own y, hand-tuned
   motion/
+    about.script.ts              ← new: places the single "about" chapter, no exit()
     octagon.ts                   ← refactored: + expandToEdges/springToHome controller
     page-transitions.ts          ← new: exit/enter sequence, wired to astro:* events
   config/
+    pages.ts                     ← + "about" page entry
     page-transition.ts           ← new: exitDuration, enter timings, eases
   components/
     Nav.astro                    ← Astro.url.pathname-driven SSR active state + client update
-    Chapter.astro                ← + optional minHeight prop
   layouts/
     Base.astro                   ← + <ClientRouter />, transition:persist ×3, animate="none"
-  styles/
-    global.css                   ← + --min-h-about token
 ```
 
 ---
@@ -245,10 +270,12 @@ src/
    tab, not a document navigation; stamp a temporary `data-instance-id` on the mat/nav/logo
    to confirm they're the same node before and after.
 
-3. **About page.** `src/pages/about.astro`, `Chapter.astro`'s new `minHeight` prop, the
-   `--min-h-about` token, placeholder copy.
-   _Verify:_ `/about` renders a taller (not wider) paper with placeholder text at intro's
-   size/color, screenshotted at a wide and a narrow viewport.
+3. **About page.** `pages.ts`'s `about` entry, `about.script.ts`, `chapters/home/about/`
+   (`Content.astro` + `motion.ts`), wired through `initPageEngine` like `home`. Placeholder
+   copy long enough to visibly exceed one viewport at `--min-h-chapter`'s floor.
+   _Verify:_ `/about` renders a paper at intro's text size/color; scrolling continuously
+   translates the paper's `y` (not a dwell-then-snap) until all copy has passed through the
+   viewport, then scroll ends — checked at a wide and a narrow/tall viewport.
 
 4. **Octagon controller refactor.** Expose `expandToEdges`/`springToHome`; make the ambient
    wobble loop pausable and resumable instead of a bare forever-recursion.
@@ -291,6 +318,7 @@ Home ⇄ About never shows a full reload or a flash: the mat sweeps to fill the 
 content fades over 350ms, springs back to its idle shape, and the destination's paper fades
 in — with the nav and logo never themselves flashing, and the active nav link updating
 correctly on every load (cold or in-app). Services and Work remain inert placeholders.
-About is a plain, engine-free static page with a deliberately taller paper. Reduced-motion
+About is a real scroll-engine chapter whose paper height follows its content, scrubbing
+by steadily as the user scrolls rather than holding still and flying away. Reduced-motion
 users get correct content with the animation skipped. `astro check` is clean and the
 sequence holds up at both a wide and a narrow/tall viewport.
