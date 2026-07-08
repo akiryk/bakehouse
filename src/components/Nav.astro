@@ -12,11 +12,12 @@ const linkClasses =
 <nav
   class="fixed top-6 right-(--mat-safe-inset-x) z-25 isolate"
   aria-label="Main navigation"
+  transition:persist="nav"
 >
   <div class="nav-backdrop absolute bg-nav-background" aria-hidden="true"></div>
   <ul class="relative m-0 flex list-none px-3 py-0">
-    <li><a href="#" class={`${linkClasses} text-ink`}>Home</a></li>
-    <li><a href="#" class={`${linkClasses} text-nav-text`}>About</a></li>
+    <li><a href="/" class={`${linkClasses} text-ink`}>Home</a></li>
+    <li><a href="/about" class={`${linkClasses} text-nav-text`}>About</a></li>
     <li><a href="#" class={`${linkClasses} text-nav-text`}>Services</a></li>
     <li><a href="#" class={`${linkClasses} text-nav-text`}>Work</a></li>
   </ul>

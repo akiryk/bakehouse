@@ -1,6 +1,7 @@
 ---
 import "../styles/global.css";
 import Nav from "../components/Nav.astro";
+import { ClientRouter } from "astro:transitions";
 
 interface Props {
   title?: string;
@@ -34,12 +35,13 @@ const staticClipPath = [
     <meta name="generator" content={Astro.generator} />
     <title>{title}</title>
     <link rel="stylesheet" href="https://use.typekit.net/edz5xyo.css" />
+    <ClientRouter />
   </head>
   <body>
     <!--
       Three layers, back to front:
         1. Background  — the body itself (--color-background, white)
-        2. Midground   — the ambient mat div (--color-midground, tan)
+        2. Midground   — the ambient mat div (--color-mat, tan)
         3. Foreground  — chapter papers via <slot />
     -->
 
@@ -54,6 +56,7 @@ const staticClipPath = [
       class="fixed inset-0 z-10"
       style={`background: var(--color-mat); clip-path: ${staticClipPath};`}
       aria-hidden="true"
+      transition:persist="mat"
     >
     </div>
 
@@ -75,7 +78,12 @@ const staticClipPath = [
          .logo-backdrop rotates the paper zone; the img stays upright above it.
          To tune: edit the inset/rotate values in .logo-backdrop and the
          poke/blur values in .logo-shadow-wrap / .logo-shadow-shape below. -->
-    <a href="/" class="logo fixed z-40 top-0 left-0" aria-label="Bakehouse">
+    <a
+      href="/"
+      class="logo fixed z-40 top-0 left-0"
+      aria-label="Bakehouse"
+      transition:persist="logo"
+    >
       <div class="logo-backdrop">
         <div class="logo-shadow-wrap">
           <div class="logo-shadow-shape"></div>
