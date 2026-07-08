@@ -61,14 +61,19 @@ export function initScrollShapes(
   if (reducedMotion) return;
 
   const vh = window.innerHeight;
-  // Full scrollable range. Use a minimum so shapes spread even on short pages.
   const maxScroll = Math.max(
     document.documentElement.scrollHeight - vh,
     vh * 3,
   );
-  // Divide scroll range into equal segments; each shape gets a random entry
-  // point within its segment so they're evenly spread but not mechanical.
-  const segment = maxScroll / config.count;
+
+  // Apply scrollZone: shapes are spread within [zoneStart, zoneEnd] in scroll-px.
+  const zoneStart = config.scrollZone.start * maxScroll;
+  const zoneEnd = config.scrollZone.end * maxScroll;
+  const zoneRange = zoneEnd - zoneStart;
+
+  // Divide zone into equal segments; each shape enters at a random point within
+  // its segment so they're evenly spread but not mechanical.
+  const segment = zoneRange / config.count;
   const shapes: Shape[] = [];
 
   for (let i = 0; i < config.count; i++) {
@@ -77,7 +82,7 @@ export function initScrollShapes(
     el.style.top = "0";
 
     const attrs = randomizeAttrs(config);
-    const scrollEntry = i * segment + rand(0, segment);
+    const scrollEntry = zoneStart + i * segment + rand(0, segment);
 
     const shape: Shape = { el, scrollEntry, ...attrs };
     applyAttrs(shape);
@@ -86,15 +91,12 @@ export function initScrollShapes(
   }
 
   gsap.ticker.add(() => {
-    // Skip per-shape work while the container is hidden — free perf.
-    if (container.style.opacity === "0") return;
-
     const scrollY = window.scrollY;
 
     for (const shape of shapes) {
-      // y is a pure function of scrollY: fully reversible.
+      // Pure function of scrollY — reversible by design.
       const y = vh - (scrollY - shape.scrollEntry) * shape.speed;
-      // Skip shapes that are entirely off-screen.
+      // Skip shapes entirely off-screen.
       if (y > vh || y < -shape.h) continue;
       gsap.set(shape.el, { y });
     }

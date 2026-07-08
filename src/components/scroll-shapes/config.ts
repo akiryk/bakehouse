@@ -18,8 +18,8 @@ export interface ShapeColor {
 export interface ScrollShapesConfig {
   /**
    * Exact number of shapes to generate. Each shape gets a random entry point
-   * spread evenly across the full scroll range, so a higher count means more
-   * shapes appear throughout the page.
+   * spread evenly across scrollZone, so a higher count means more shapes
+   * appear throughout the designated scroll range.
    */
   count: number;
   /**
@@ -27,6 +27,13 @@ export interface ScrollShapesConfig {
    * e.g. { left: 0.65, right: 1.0 } confines shapes to the right 35% of the viewport.
    */
   xZone: { left: number; right: number };
+  /**
+   * Vertical scroll zone, as fractions of the total scrollable range (0–1).
+   * Shapes are spread so they enter only within this window.
+   * e.g. { start: 0, end: 0.12 } confines all entry points to the first 12%
+   * of total scroll — roughly chapters 1–2 on the home page.
+   */
+  scrollZone: { start: number; end: number };
   /** Shape height range in vh. */
   height: { min: number; max: number };
   /** Shape width range in vw. */
@@ -43,6 +50,7 @@ export interface ScrollShapesConfig {
 export const defaultConfig: ScrollShapesConfig = {
   count: 12,
   xZone: { left: 0.65, right: 1.0 },
+  scrollZone: { start: 0, end: 1 },
   height: { min: 25, max: 100 }, // vh
   width: { min: 0.05, max: 5 }, // vw
   speed: { min: 0.3, max: 0.9 },
