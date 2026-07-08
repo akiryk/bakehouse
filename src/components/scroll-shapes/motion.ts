@@ -1,16 +1,12 @@
 import gsap from "gsap";
-import type {
-  ScrollShapesConfig,
-  ScrollShapesSizeGroup,
-  ShapeColor,
-} from "./config";
+import type { ScrollShapesConfig, ScrollShapesSizeGroup } from "./config";
 
 interface Shape {
   el: HTMLElement;
   x: number; // px
   w: number; // px
   h: number; // px
-  color: ShapeColor;
+  opacity: number;
   speed: number;
   /**
    * The scrollY value at which this shape first appears at the bottom of the
@@ -23,10 +19,6 @@ interface Shape {
 
 function rand(min: number, max: number): number {
   return Math.random() * (max - min) + min;
-}
-
-function pick<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -50,14 +42,14 @@ function buildSizePool(
 function randomizeAttrs(
   config: ScrollShapesConfig,
   size: ScrollShapesSizeGroup,
-): Pick<Shape, "x" | "w" | "h" | "color" | "speed"> {
+): Pick<Shape, "x" | "w" | "h" | "opacity" | "speed"> {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   return {
     x: rand(config.xZone.left, config.xZone.right) * vw,
     w: rand(size.width.min, size.width.max),
     h: rand(size.height.min, size.height.max) * vh * 0.01,
-    color: pick(config.colors),
+    opacity: rand(config.opacity.min, config.opacity.max),
     speed: rand(config.speed.min, config.speed.max),
   };
 }
@@ -66,8 +58,7 @@ function applyAttrs(shape: Shape): void {
   shape.el.style.width = `${shape.w}px`;
   shape.el.style.height = `${shape.h}px`;
   shape.el.style.left = `${shape.x}px`;
-  shape.el.style.backgroundColor = shape.color.value;
-  shape.el.style.opacity = String(shape.color.opacity);
+  shape.el.style.opacity = String(shape.opacity);
 }
 
 /**
@@ -129,8 +120,19 @@ export function initScrollShapes(
 
     for (let i = 0; i < totalCount; i++) {
       const el = document.createElement("div");
-      el.style.position = "absolute";
-      el.style.top = "0";
+      // bg-mat: the same live --color-mat token the midground and nav track
+      // (global.css) — shapes carry no color of their own, so the morph
+      // comes for free from the mechanism that already writes --color-mat
+      // every scrubbed frame. No polling, no event wiring: this component
+      // just references a token by name.
+      //
+      // mix-blend-multiply here (child level) blends overlapping shapes with
+      // *each other* — two overlapping shapes read as compounded-darker than
+      // either alone. This is a separate responsibility from the container's
+      // own mix-blend-mode in ScrollShapes.astro, which blends the layer as a
+      // whole against the mat *outside* this stacking context. See the
+      // comment there for why both are needed.
+      el.className = "absolute top-0 bg-mat mix-blend-multiply";
 
       const attrs = randomizeAttrs(config, sizePool[i]);
       const scrollEntry = zoneStart + i * segment + rand(0, segment);

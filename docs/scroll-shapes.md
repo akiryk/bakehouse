@@ -63,7 +63,7 @@ own stacking context:
 ```
 
 **`config.ts`** defines `ScrollShapesConfig` — size groups, horizontal zone, vertical
-scroll zone, speed range, and a color pool. `defaultConfig` holds the currently-tuned
+scroll zone, speed range, and an opacity range. `defaultConfig` holds the currently-tuned
 values (`src/pages/index.astro` passes it straight through, unmodified). A page that needs
 different behavior spreads it and overrides only what differs:
 
@@ -96,11 +96,67 @@ Every field on `ScrollShapesConfig`, at a glance (full mechanics for each are in
 | `xZone`      | `{ left, right }`            | viewport-width fraction (0–1)                             | Horizontal band shapes may appear in, e.g. `{ left: 0.65, right: 1.0 }` confines them to the right third of the screen.                                                                                                                                                                                         |
 | `scrollZone` | `{ start, end }`             | vh, anchored to page top (100 = one viewport height down) | Where each shape's entry point (scrollY at which its top reaches the viewport's bottom edge) is randomly drawn from. `start` below 0 lets shapes already be visible at load; `end` is clamped to the page's real max scroll, so a generously high value safely means "keep entering all the way to the bottom." |
 | `speed`      | `{ min, max }`               | multiplier on scrollY                                     | Per-shape parallax rate. `1.0` tracks scroll 1:1 (feels closer); lower values drift more slowly (feels farther back).                                                                                                                                                                                           |
-| `colors`     | `{ value, opacity }[]`       | CSS color + 0–1 opacity                                   | Pool each shape's fill is randomly picked from.                                                                                                                                                                                                                                                                 |
+| `opacity`    | `{ min, max }`               | 0–1                                                       | Per-shape opacity, randomized once. Shapes have no color of their own — see **Color** below.                                                                                                                                                                                                                    |
 
 Every field is a **range or pool that's resolved once per shape at generation time** —
-there are no per-frame random draws, so a shape's size, color, and speed are stable for
-its whole lifetime; only its position changes as `scrollY` changes.
+there are no per-frame random draws, so a shape's size, opacity, and speed are stable for
+its whole lifetime; only its position (and, indirectly, its rendered color) changes as
+`scrollY` changes.
+
+### Color: shapes have none of their own
+
+Shapes don't carry a color value. Each shape's div gets the Tailwind utilities `bg-mat
+mix-blend-multiply` — nothing else. `bg-mat` resolves to `background-color:
+var(--color-mat)`, the same live CSS custom property the midground polygon and the nav
+text already track (`--color-nav-text: var(--color-mat)` in `global.css`); `page-script.ts`
+writes a freshly-interpolated value to it via `root.style.setProperty("--color-mat", ...)`
+on every scrubbed frame as chapters morph (tan → yellow → slate on the home page).
+`mix-blend-mode: multiply` renders each shape as a darker patch of whatever that current
+color is, rather than an independent hue — so as the midground morphs, the shapes morph
+with it, for free.
+
+**Multiply is applied twice, at two different levels, for two different jobs:**
+
+- **Child level** (`mix-blend-multiply` on each shape div, set in `motion.ts`) — blends
+  overlapping shapes **with each other**. Two overlapping shapes read as compounded-darker
+  than either alone, rather than just stacking flat (same-colored shapes composited with
+  plain `normal` blending are invisible as an overlap — compositing an identical color
+  over itself doesn't change the color, no matter how many layers or what opacity).
+- **Container level** (`mix-blend-mode: multiply` on `.scroll-shapes-layer`, in
+  `ScrollShapes.astro`) — blends the _resulting flattened shape group, as a whole_, against
+  the mat, which sits **outside** this container's own stacking context.
+
+Neither substitutes for the other, because of how CSS scopes blend modes: this container
+already establishes its own stacking context (from `position: fixed` + `z-index`), and a
+stacking context is a blending-isolation boundary — an element's `mix-blend-mode` can only
+ever blend with backdrop content inside its nearest containing stacking context. A shape's
+own `mix-blend-mode` reaches its sibling shapes (same context) but can never reach the mat
+(outside it) — hence the container needs its own `mix-blend-mode` to bridge that gap. This
+was a real bug caught by pixel-level Playwright verification, not just code review: with
+only the container blending, shapes correctly darkened against the mat but overlapping
+shapes stopped darkening each other (verified: an overlap region between two same-opacity
+shapes rendered pixel-identical to either shape alone, with no compounding). Adding the
+child-level `mix-blend-multiply` back fixed it, verified by sampling actual rendered pixel
+values against the exact composite-blending formula (not just eyeballing a screenshot) —
+single-shape darkening was unchanged (no double-darkening from the second blend layer),
+and overlap regions came out measurably and correctly darker than either shape alone.
+
+This is deliberate, not incidental: it's what keeps scroll-shapes decoupled from the rest
+of the app. The component doesn't poll a color, doesn't subscribe to an event, and doesn't
+import anything from the engine or page scripts — it only references a token **by name**,
+exactly the same relationship the nav already has to it. The alternatives considered and
+rejected:
+
+- **Polling `getComputedStyle` in the ticker** — real, avoidable cost: forces a style
+  read every frame, for every shape, to reproduce a value the browser already computes as
+  part of its normal paint pipeline.
+- **An event emitter / pub-sub channel** — the color changes continuously during a
+  scrubbed morph, not at discrete moments, so this would mean firing events every frame
+  anyway, while also giving both sides a shared contract (event name, payload shape) to
+  maintain — more coupling than a CSS variable reference, not less.
+- **Referencing the token in CSS** (what's implemented) — the browser already recomputes
+  and repaints every element referencing `--color-mat` whenever GSAP writes a new value;
+  adding more consumers of that same property costs nothing extra.
 
 ## Behavior
 
@@ -109,7 +165,7 @@ Each shape is generated once, at load, with:
 - a random `x` position within `xZone` (viewport-width fraction, converted to px),
 - a random `w` within its size group's `width` range (already px — no conversion),
 - a random `h` within its size group's `height` range (vh, converted to px),
-- a random `color`/`opacity` from the `colors` pool,
+- a random `opacity` within `opacity` (color itself is not randomized — see **Color** above),
 - a random `speed` multiplier within `speed`,
 - and a **`scrollEntry`** — the absolute `scrollY` (in px) at which the shape's top edge
   reaches the bottom of the viewport. Entries are spread evenly across
@@ -231,7 +287,10 @@ width: { min: 1, max: 10 }, height: { min: 10, max: 30 } }]` for 5 large shapes 
   group with one wide range behaves like the old flat width/height config.
 - **Drift speed** → `speed` range. Higher = faster relative to scroll (`1.0` tracks
   scroll 1:1; lower values drift more slowly, reading as "further back").
-- **Color / opacity** → the `colors` pool; each shape picks one entry at random.
+- **Opacity (color is not configurable per-shape)** → the `opacity` range. Color always
+  tracks the live `--color-mat` token via `mix-blend-mode: multiply` — see **Color** above.
+  To change the _palette_ shapes morph through, edit the midground's own color stops
+  (`pages.ts` / the chapter's morph config), not anything in `scroll-shapes/`.
 - **The z-index itself** → `--z-shapes` in `global.css`'s `@theme` block. Don't hardcode
   a numeric z-index in the component.
 - **Adding the layer to a new page** → import `ScrollShapes` and `defaultConfig`, build a

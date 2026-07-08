@@ -7,14 +7,6 @@
  *   const homeConfig = { ...defaultConfig, xZone: { left: 0.70, right: 0.95 } };
  */
 
-/** A single color option for shape fill. */
-export interface ShapeColor {
-  /** CSS color value (hex, rgb, named, etc.). */
-  value: string;
-  /** Opacity 0–1. */
-  opacity: number;
-}
-
 /** One size bucket: how many shapes, and the width/height range for each. */
 export interface ScrollShapesSizeGroup {
   /** How many shapes to generate at this size. */
@@ -74,20 +66,25 @@ export interface ScrollShapesConfig {
    * travel. 0.3 = slow drift; 1.0 = moves one px per px of scroll.
    */
   speed: { min: number; max: number };
-  /** Pool of colors randomly assigned to each shape. At least one entry required. */
-  colors: ShapeColor[];
+  /**
+   * Opacity range (0–1), randomized per shape. Shapes don't carry their own
+   * color — every shape renders as the live `--color-mat` token (the same
+   * one the midground and nav already track) with `mix-blend-mode: multiply`,
+   * so a shape reads as a darker patch of whatever the current midground
+   * color is, rather than an independent hue. Varying opacity is what gives
+   * shapes visual variety instead of a flat, uniform darkening.
+   */
+  opacity: { min: number; max: number };
 }
 
 export const defaultConfig: ScrollShapesConfig = {
   sizeGroups: [
-    { count: 10, width: { min: 1, max: 10 }, height: { min: 50, max: 100 } }, // vh
+    { count: 20, width: { min: 1, max: 6 }, height: { min: 50, max: 130 } }, // vh
+    { count: 8, width: { min: 8, max: 14 }, height: { min: 50, max: 130 } }, // vh
     { count: 10, width: { min: 100, max: 200 }, height: { min: 80, max: 130 } }, // vh
   ],
   xZone: { left: 0.65, right: 1.0 },
   scrollZone: { start: -400, end: 100_000 },
   speed: { min: 0.3, max: 0.9 },
-  colors: [
-    { value: "#ffffff", opacity: 0.1 },
-    { value: "#000000", opacity: 0.08 },
-  ],
+  opacity: { min: 0.1, max: 1 },
 };

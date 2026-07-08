@@ -36,6 +36,20 @@ const resolvedConfig: ScrollShapesConfig = { ...defaultConfig, ...config };
     inset: 0;
     z-index: var(--z-shapes);
     pointer-events: none;
+    /* Nested multiply, two distinct jobs:
+       - Child level (motion.ts sets mix-blend-multiply on each shape div):
+         blends overlapping shapes with EACH OTHER, so two overlapping shapes
+         read as compounded-darker than either alone, not just flat-stacked.
+       - Container level (this rule): blends the resulting flattened shape
+         group, as a whole, against the mat OUTSIDE this stacking context.
+       Both are required, and neither substitutes for the other: this
+       container's own position+z-index already establish a stacking context,
+       and a stacking context is a blending-isolation boundary — a shape's
+       own mix-blend-mode can only ever reach backdrop within its nearest
+       containing stacking context (i.e. sibling shapes), never the mat
+       beyond it. Only the container's own mix-blend-mode reaches past that
+       boundary to blend the whole layer with what's behind it. */
+    mix-blend-mode: multiply;
   }
 </style>
 
