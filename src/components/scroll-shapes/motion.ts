@@ -8,8 +8,7 @@ interface Shape {
   h: number; // px
   color: ShapeColor;
   speed: number;
-  baseY: number; // px — initial vertical offset (distributed across [0, 100vh])
-  cycleIndex: number;
+  baseY: number; // px — y at scrollY=0; decreases as the user scrolls down
 }
 
 function rand(min: number, max: number): number {
@@ -67,17 +66,13 @@ export function initScrollShapes(
     const el = document.createElement("div");
     el.style.position = "absolute";
     el.style.top = "0";
-    // Stagger baseY across [0, 100vh] so shapes are distributed at load,
-    // not all entering from the bottom at once.
-    const baseY = (i / count) * vh;
 
-    const shape: Shape = {
-      el,
-      baseY,
-      cycleIndex: 0,
-      ...randomizeAttrs(config),
-    };
+    const attrs = randomizeAttrs(config);
+    // All shapes start below the viewport. Stagger across [vh, 2vh] so they
+    // trickle in from the bottom rather than arriving all at once.
+    const baseY = vh + attrs.h + (i / count) * vh;
 
+    const shape: Shape = { el, baseY, ...attrs };
     applyAttrs(shape);
     container.appendChild(el);
     shapes.push(shape);
@@ -90,20 +85,20 @@ export function initScrollShapes(
     const scrollY = window.scrollY;
 
     for (const shape of shapes) {
-      const rawY = shape.baseY - scrollY * shape.speed;
-      const totalH = shape.h + window.innerHeight;
-      const newCycle = Math.floor(-rawY / totalH);
+      const y = shape.baseY - scrollY * shape.speed;
 
-      if (newCycle !== shape.cycleIndex) {
-        // Shape scrolled off-screen — rerandomize before it re-enters from bottom.
-        shape.cycleIndex = newCycle;
+      if (y <= -shape.h) {
+        // Shape scrolled off the top — reborn below the bottom with fresh attrs.
         Object.assign(shape, randomizeAttrs(config));
         applyAttrs(shape);
+        // Place below screen at a random depth so shapes don't bunch up.
+        shape.baseY =
+          scrollY * shape.speed +
+          window.innerHeight +
+          rand(0, window.innerHeight);
       }
 
-      // Wrap rawY into [0, totalH), then offset so the shape starts below screen.
-      const y = (((rawY % totalH) + totalH) % totalH) - shape.h;
-      gsap.set(shape.el, { y });
+      gsap.set(shape.el, { y: shape.baseY - scrollY * shape.speed });
     }
   });
 }
