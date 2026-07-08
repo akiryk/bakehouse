@@ -57,6 +57,11 @@ const staticClipPath = [
     >
     </div>
 
+    <!-- Ambient layers slot — for fixed decorative layers (e.g. ScrollShapes)
+         that must live at the root stacking context, not inside the foreground
+         stage. Use slot="ambient" on the component in the page file. -->
+    <slot name="ambient" />
+
     <!-- Layer 3: Foreground stage — full-screen canvas, no layout opinion.
          pointer-events-none here so the transparent area of the stage doesn't
          block the nav. Chapter.astro restores pointer-events-auto on each paper. -->
