@@ -18,4 +18,8 @@ export const pages: Record<string, PageConfig> = {
       { id: "timeline", motionPath: "home/timeline/motion" },
     ],
   },
+  about: {
+    useScrollEngine: true,
+    chapters: [{ id: "about", motionPath: "home/about/motion" }],
+  },
 };
