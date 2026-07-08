@@ -33,6 +33,31 @@
 import gsap from "gsap";
 import { octagonShape } from "../config/octagon";
 
+// ─── Cross-page transition controller ──────────────────────────────────────
+//
+// Exposed so motion/page-transitions.ts can expand the mat to fill the
+// viewport on exit and spring it back to its idle shape on enter (see
+// docs/epics/epic-17-*). Kept as a reassignable singleton object — rather
+// than exporting the functions directly from initOctagonWobble()'s closure
+// — so a module that imports { octagonController } always reaches the live
+// instance regardless of import order. This is safe as a true singleton
+// because the mat is transition:persist-ed and this module's init script
+// only ever executes once per session (Astro doesn't re-run an inline
+// script whose exact source it's already seen — see docs/motion.md).
+// Before initOctagonWobble() runs, both methods are harmless no-ops.
+
+export interface OctagonController {
+  /** Tween all 8 vertices to the nearest viewport edge/corner, arriving together. */
+  expandToEdges(durationMs: number): Promise<void>;
+  /** Tween all 8 vertices back to their idle homes, then resume ambient wobble. */
+  springToHome(durationMs: number): Promise<void>;
+}
+
+export const octagonController: OctagonController = {
+  expandToEdges: async () => {},
+  springToHome: async () => {},
+};
+
 // ─── Tunable constants ────────────────────────────────────────────────────────
 
 /** Ease per leg. "none" = constant velocity, no hitch at targets. */
@@ -126,6 +151,14 @@ export function initOctagonWobble(): void {
 
   const working = Array.from({ length: 8 }, () => ({ dx: 0, dy: 0 }));
 
+  // Whether the ambient random-wander loop should keep scheduling new legs.
+  // expandToEdges() clears this so in-flight wobble tweens stop recursing;
+  // springToHome() sets it back and calls startAmbientWobble() to resume.
+  // Reassigned inside the matchMedia "motion" branch below; stays a no-op
+  // under reduced motion, where there's no ambient loop to resume.
+  let wobbling = true;
+  let startAmbientWobble: () => void = () => {};
+
   function writeClipPath(): void {
     // Absolute px position of vertex i, including wobble offset.
     const x = (i: number) => homes[i][0] + working[i].dx;
@@ -160,6 +193,66 @@ export function initOctagonWobble(): void {
 
     mat!.style.clipPath = `path('${d}')`;
   }
+
+  // ── Cross-page transition: expand / spring back ──────────────────────────
+  //
+  // Corners collapse fully to the viewport corner; edge-centers keep
+  // whatever their free axis currently is (including in-flight wobble) and
+  // only the axis facing that edge moves — "each vertex makes a beeline for
+  // the nearest edge." Bezier handles (handleW/handleH) are left as-is, so
+  // the mat still reads as a very-slightly-bowed near-rectangle at full
+  // bleed rather than a hard rectangle — consistent with the rest of the
+  // shape, not a defect.
+  //
+  // Targets are expressed as the FINAL working[i].dx/dy value (not a delta),
+  // computed once per call from the current homes/W/H cache. Omitting an
+  // axis leaves that axis's tween absent, so GSAP simply doesn't touch it —
+  // it keeps whatever value it already had, frozen at the current wobble
+  // position rather than snapping back to the vertex's rest home.
+  type EdgeTarget = { dx?: number; dy?: number };
+  function edgeTargets(): EdgeTarget[] {
+    return [
+      { dx: -homes[0][0], dy: -homes[0][1] }, // upperLeft   → (0, 0)
+      { dy: -homes[1][1] }, // upperCenter → y=0, x frozen
+      { dx: W - homes[2][0], dy: -homes[2][1] }, // upperRight  → (W, 0)
+      { dx: W - homes[3][0] }, // centerRight → x=W, y frozen
+      { dx: W - homes[4][0], dy: H - homes[4][1] }, // lowerRight  → (W, H)
+      { dy: H - homes[5][1] }, // lowerCenter → y=H, x frozen
+      { dx: -homes[6][0], dy: H - homes[6][1] }, // lowerLeft   → (0, H)
+      { dx: -homes[7][0] }, // centerLeft  → x=0, y frozen
+    ];
+  }
+
+  function tweenAllVertices(
+    targets: EdgeTarget[],
+    durationMs: number,
+    ease: string,
+  ): Promise<void> {
+    const duration = durationMs / 1000;
+    const tweens = working.map((w, i) =>
+      gsap.to(w, { ...targets[i], duration, ease, onUpdate: writeClipPath }),
+    );
+    return Promise.all(tweens.map((t) => t.then(() => undefined))).then(
+      () => undefined,
+    );
+  }
+
+  function expandToEdges(durationMs: number): Promise<void> {
+    wobbling = false;
+    working.forEach((w) => gsap.killTweensOf(w));
+    return tweenAllVertices(edgeTargets(), durationMs, "power2.inOut");
+  }
+
+  async function springToHome(durationMs: number): Promise<void> {
+    working.forEach((w) => gsap.killTweensOf(w));
+    const restTargets: EdgeTarget[] = working.map(() => ({ dx: 0, dy: 0 }));
+    await tweenAllVertices(restTargets, durationMs, "power2.out");
+    wobbling = true;
+    startAmbientWobble();
+  }
+
+  octagonController.expandToEdges = expandToEdges;
+  octagonController.springToHome = springToHome;
 
   // ── Resize ────────────────────────────────────────────────────────────────
   // Debounced so we don't thrash on every pixel of a drag-resize.
@@ -224,6 +317,13 @@ export function initOctagonWobble(): void {
       }
 
       function animateVertex(i: number): void {
+        // expandToEdges() clears `wobbling` and kills in-flight tweens of
+        // working[i] directly — but a leg that already finished its tween
+        // and is about to call scheduleNext() in this same tick hasn't been
+        // killed (there's nothing to kill), so this check is what actually
+        // stops the recursion from re-arming itself during a transition.
+        if (!wobbling) return;
+
         const target = randomTarget();
         const duration =
           defaultSpeed * (1 + (Math.random() - 0.5) * LEG_SPEED_VARIANCE);
@@ -253,11 +353,19 @@ export function initOctagonWobble(): void {
       }
 
       // Stagger start times evenly across one speed cycle so vertices are
-      // always out of phase from the first frame.
-      const phaseStep = defaultSpeed / homes.length;
-      homes.forEach((_, i) => {
-        gsap.delayedCall(i * phaseStep, () => animateVertex(i));
-      });
+      // always out of phase from the first frame. Reassigned here (not just
+      // called) so springToHome() can call the same function again to
+      // resume the loop after a transition — re-staggering rather than
+      // resuming mid-leg is a deliberate simplification, not a bug: the
+      // vertices lose their exact prior phase relationship, but end up
+      // staggered and out of phase again within one cycle either way.
+      startAmbientWobble = () => {
+        const phaseStep = defaultSpeed / homes.length;
+        homes.forEach((_, i) => {
+          gsap.delayedCall(i * phaseStep, () => animateVertex(i));
+        });
+      };
+      startAmbientWobble();
     },
   );
 }

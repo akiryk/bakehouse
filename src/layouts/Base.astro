@@ -160,6 +160,12 @@ const staticClipPath = [
 </style>
 
 <script>
-  import { initOctagonWobble } from "../motion/octagon";
+  import { initOctagonWobble, octagonController } from "../motion/octagon";
   initOctagonWobble();
+
+  if (import.meta.env.DEV) {
+    // Console/devtool access, mirroring __beatModel — e.g.
+    // __octagonController.expandToEdges(350)
+    (window as any).__octagonController = octagonController;
+  }
 </script>
