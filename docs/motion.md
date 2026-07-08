@@ -66,6 +66,19 @@ px at trigger time (`() => vhToPx(totalVH)`). GSAP does not parse `vh` in positi
 strings — it strips the unit suffix and treats the number as raw px, which would make all
 scroll ranges wildly wrong.
 
+**The trailing beat isn't optional.** The engine maps the master timeline over
+`[0, totalBeats]` onto scroll positions `[0, totalBeats * vhPerBeat px]` — but the page's
+actual max `scrollY` is always exactly **one viewport short** of that (`scrollHeight -
+innerHeight`; the spacer is the only element contributing document height, and you can
+never scroll a page "past" its own last screen). That means the final `vhPerBeat` (1 beat,
+100vh) of the master timeline can never actually be reached by scrolling. `home.script.ts`'s
+trailing `at(16.4, hold(1))` is invisible there only because the timeline chapter's real
+motion (`travel({ to: 2026 })`) finishes with beats to spare before it. A page script whose
+real content/motion runs all the way up to its own end — as `about.script.ts` does, since
+its whole chapter is one continuous scrub — needs a trailing `hold(beats)` of **at least 1**
+or the last stretch of that motion is measurably unreachable at max scroll (confirmed via
+Playwright: dropping it below 1 left the About paper's scrub short of its target).
+
 ---
 
 ## A chapter's motion: two fields
