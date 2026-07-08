@@ -8,15 +8,17 @@ interface Shape {
   h: number; // px
   color: ShapeColor;
   speed: number;
-  baseY: number; // px — y at scrollY=0; decreases as the user scrolls down
+  /**
+   * The scrollY value at which this shape first appears at the bottom of the
+   * viewport. Position is a pure function of scrollY:
+   *   y = innerHeight - (scrollY - scrollEntry) * speed
+   * This makes motion fully reversible — scrolling back up retraces the same path.
+   */
+  scrollEntry: number;
 }
 
 function rand(min: number, max: number): number {
   return Math.random() * (max - min) + min;
-}
-
-function randInt(min: number, max: number): number {
-  return Math.floor(rand(min, max + 1));
 }
 
 function pick<T>(arr: T[]): T {
@@ -59,20 +61,25 @@ export function initScrollShapes(
   if (reducedMotion) return;
 
   const vh = window.innerHeight;
-  const count = randInt(config.count.min, config.count.max);
+  // Full scrollable range. Use a minimum so shapes spread even on short pages.
+  const maxScroll = Math.max(
+    document.documentElement.scrollHeight - vh,
+    vh * 3,
+  );
+  // Divide scroll range into equal segments; each shape gets a random entry
+  // point within its segment so they're evenly spread but not mechanical.
+  const segment = maxScroll / config.count;
   const shapes: Shape[] = [];
 
-  for (let i = 0; i < count; i++) {
+  for (let i = 0; i < config.count; i++) {
     const el = document.createElement("div");
     el.style.position = "absolute";
     el.style.top = "0";
 
     const attrs = randomizeAttrs(config);
-    // All shapes start below the viewport. Stagger across [vh, 2vh] so they
-    // trickle in from the bottom rather than arriving all at once.
-    const baseY = vh + attrs.h + (i / count) * vh;
+    const scrollEntry = i * segment + rand(0, segment);
 
-    const shape: Shape = { el, baseY, ...attrs };
+    const shape: Shape = { el, scrollEntry, ...attrs };
     applyAttrs(shape);
     container.appendChild(el);
     shapes.push(shape);
@@ -85,20 +92,11 @@ export function initScrollShapes(
     const scrollY = window.scrollY;
 
     for (const shape of shapes) {
-      const y = shape.baseY - scrollY * shape.speed;
-
-      if (y <= -shape.h) {
-        // Shape scrolled off the top — reborn below the bottom with fresh attrs.
-        Object.assign(shape, randomizeAttrs(config));
-        applyAttrs(shape);
-        // Place below screen at a random depth so shapes don't bunch up.
-        shape.baseY =
-          scrollY * shape.speed +
-          window.innerHeight +
-          rand(0, window.innerHeight);
-      }
-
-      gsap.set(shape.el, { y: shape.baseY - scrollY * shape.speed });
+      // y is a pure function of scrollY: fully reversible.
+      const y = vh - (scrollY - shape.scrollEntry) * shape.speed;
+      // Skip shapes that are entirely off-screen.
+      if (y > vh || y < -shape.h) continue;
+      gsap.set(shape.el, { y });
     }
   });
 }

@@ -16,8 +16,12 @@ export interface ShapeColor {
 }
 
 export interface ScrollShapesConfig {
-  /** How many shapes are generated. Exact count is random within [min, max]. */
-  count: { min: number; max: number };
+  /**
+   * Exact number of shapes to generate. Each shape gets a random entry point
+   * spread evenly across the full scroll range, so a higher count means more
+   * shapes appear throughout the page.
+   */
+  count: number;
   /**
    * Horizontal zone where shapes may appear, as viewport-width fractions (0–1).
    * e.g. { left: 0.65, right: 1.0 } confines shapes to the right 35% of the viewport.
@@ -28,8 +32,8 @@ export interface ScrollShapesConfig {
   /** Shape width range in vw. */
   width: { min: number; max: number };
   /**
-   * Scroll-parallax speed range. Multiplier applied to window.scrollY to derive
-   * upward travel. 0.3 = slow drift; 1.0 = moves one px per px of scroll.
+   * Scroll-parallax speed range. Multiplier applied to scrollY to derive upward
+   * travel. 0.3 = slow drift; 1.0 = moves one px per px of scroll.
    */
   speed: { min: number; max: number };
   /** Pool of colors randomly assigned to each shape. At least one entry required. */
@@ -37,10 +41,10 @@ export interface ScrollShapesConfig {
 }
 
 export const defaultConfig: ScrollShapesConfig = {
-  count: { min: 4, max: 8 },
+  count: 12,
   xZone: { left: 0.65, right: 1.0 },
-  height: { min: 8, max: 30 }, // vh
-  width: { min: 3, max: 10 }, // vw
+  height: { min: 25, max: 100 }, // vh
+  width: { min: 0.05, max: 5 }, // vw
   speed: { min: 0.3, max: 0.9 },
   colors: [
     { value: "#ffffff", opacity: 0.1 },
