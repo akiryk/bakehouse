@@ -1,3 +1,4 @@
+import gsap from "gsap";
 import type { ScrollShapesConfig, ShapeColor } from "./config";
 
 interface Shape {
@@ -82,6 +83,27 @@ export function initScrollShapes(
     shapes.push(shape);
   }
 
-  // Ticker and wrap-and-rerandomize added in next step.
-  void shapes; // suppress unused-variable warning until ticker is wired
+  gsap.ticker.add(() => {
+    // Skip per-shape work while the container is hidden — free perf.
+    if (container.style.opacity === "0") return;
+
+    const scrollY = window.scrollY;
+
+    for (const shape of shapes) {
+      const rawY = shape.baseY - scrollY * shape.speed;
+      const totalH = shape.h + window.innerHeight;
+      const newCycle = Math.floor(-rawY / totalH);
+
+      if (newCycle !== shape.cycleIndex) {
+        // Shape scrolled off-screen — rerandomize before it re-enters from bottom.
+        shape.cycleIndex = newCycle;
+        Object.assign(shape, randomizeAttrs(config));
+        applyAttrs(shape);
+      }
+
+      // Wrap rawY into [0, totalH), then offset so the shape starts below screen.
+      const y = (((rawY % totalH) + totalH) % totalH) - shape.h;
+      gsap.set(shape.el, { y });
+    }
+  });
 }
