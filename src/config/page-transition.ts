@@ -12,11 +12,17 @@ export const pageTransition = {
   exitEase: "power1.in",
 
   /** How long the mat takes to spring back to its idle shape on the
-   * incoming page, before the paper fades in. */
+   * incoming page. Overlaps with the paper fade (see enterPaperDelayMs),
+   * not sequential. */
   enterMatDurationMs: 450,
 
-  /** How long the incoming page's paper takes to fade in, once the mat has
-   * settled. */
+  /** How long the incoming page's paper takes to fade in. */
   enterPaperDurationMs: 400,
   enterPaperEase: "power1.out",
+
+  /** How long after the mat starts springing back the paper starts fading
+   * in. 0 = both start at the same instant. Only applies when the mat is
+   * actually springing (i.e. not a cold load, where there's nothing to
+   * overlap with and the paper just fades in immediately). */
+  enterPaperDelayMs: 0,
 };

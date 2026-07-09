@@ -89,13 +89,17 @@ async function runExit(): Promise<void> {
  * forced here via immediateRender, which was measurably causing a flash
  * (content briefly visible at full opacity, then snapped to 0, then faded
  * back in) on a cold load, before this element's own animation had a
- * chance to run. */
-function fadeInPaper(durationMs: number): void {
+ * chance to run.
+ *
+ * delayMs uses GSAP's own `delay`, not setTimeout — the tween is scheduled
+ * synchronously either way; only when it visibly starts is offset. */
+function fadeInPaper(durationMs: number, delayMs = 0): void {
   const stage = document.querySelector<HTMLElement>(".foreground-stage");
   if (!stage) return;
   gsap.to(stage, {
     opacity: 1,
     duration: durationMs / 1000,
+    delay: delayMs / 1000,
     ease: pageTransition.enterPaperEase,
   });
 }
@@ -119,23 +123,36 @@ function updateNavActiveState(): void {
   });
 }
 
-/** Mat spring-back (only if this navigation actually expanded it), then the
- * paper fades in once it's settled — matching the exit's "mat moves, then
- * content" ordering in reverse. Under reduced motion, skips both tweens and
- * jumps the paper straight to visible — content must still be reachable
- * without motion (CLAUDE.md), and since runExit() never expanded the mat
- * for a reduced-motion navigation, didExpand is already false here too. */
+/** Mat spring-back and paper fade-in start together (only if this
+ * navigation actually expanded the mat) — overlapping, not sequential.
+ * enterPaperDelayMs offsets how long after the mat starts springing the
+ * paper begins fading in; 0 means both start at the same instant. On a
+ * cold load (mat was never expanded, nothing to overlap with) the paper
+ * just fades in immediately, ignoring that delay. Under reduced motion,
+ * skips both tweens and jumps the paper straight to visible — content
+ * must still be reachable without motion (CLAUDE.md), and since runExit()
+ * never expanded the mat for a reduced-motion navigation, didExpand is
+ * already false here too. */
 async function runEnter(): Promise<void> {
   if (prefersReducedMotion()) {
     const stage = document.querySelector<HTMLElement>(".foreground-stage");
     if (stage) gsap.set(stage, { opacity: 1 });
     return;
   }
-  if (didExpand) {
-    await octagonController.springToHome(pageTransition.enterMatDurationMs);
-    didExpand = false;
-  }
-  fadeInPaper(pageTransition.enterPaperDurationMs);
+
+  const matSpringing = didExpand;
+  didExpand = false;
+
+  const matPromise = matSpringing
+    ? octagonController.springToHome(pageTransition.enterMatDurationMs)
+    : Promise.resolve();
+
+  fadeInPaper(
+    pageTransition.enterPaperDurationMs,
+    matSpringing ? pageTransition.enterPaperDelayMs : 0,
+  );
+
+  await matPromise;
 }
 
 export function initPageTransitions(): void {
