@@ -61,14 +61,28 @@ function applyAttrs(shape: Shape): void {
   shape.el.style.opacity = String(shape.opacity);
 }
 
+// The ticker callback from the most recent initScrollShapes() call, if any.
+// ScrollShapes.astro's script now carries data-astro-rerun (a repeat visit
+// to a page mounting this component must re-init, since its container is a
+// fresh, non-persisted element each time) — but gsap.ticker is a *global*,
+// cross-navigation singleton, so without this, every repeat visit would add
+// one more ticker callback forever, each looping over shapes belonging to a
+// container that's already been removed from the DOM.
+let activeTicker: (() => void) | null = null;
+
 /**
- * Initializes the scroll-shapes ambient layer.
- * Called once at page load by ScrollShapes.astro.
+ * Initializes the scroll-shapes ambient layer. Called on every visit to a
+ * page mounting this component (see ScrollShapes.astro's data-astro-rerun).
  */
 export function initScrollShapes(
   container: HTMLElement,
   config: ScrollShapesConfig,
 ): void {
+  if (activeTicker) {
+    gsap.ticker.remove(activeTicker);
+    activeTicker = null;
+  }
+
   const reducedMotion = window.matchMedia(
     "(prefers-reduced-motion: reduce)",
   ).matches;
@@ -148,9 +162,10 @@ export function initScrollShapes(
       shapes.push(shape);
     }
 
-    gsap.ticker.add(() => {
+    activeTicker = () => {
       const scrollY = window.scrollY;
       for (const shape of shapes) positionShape(shape, scrollY);
-    });
+    };
+    gsap.ticker.add(activeTicker);
   }
 }

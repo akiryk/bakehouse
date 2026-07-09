@@ -5,9 +5,14 @@ import { ClientRouter } from "astro:transitions";
 
 interface Props {
   title?: string;
+  /** Identifies which page this is, for motion/page-init.ts's astro:page-load
+   * dispatch (rendered as document.body.dataset.page) — see that file's
+   * header comment for why dispatch-by-identity replaces each page having
+   * its own re-runnable <script>. */
+  page: "home" | "about";
 }
 
-const { title = "Bakehouse" } = Astro.props;
+const { title = "Bakehouse", page } = Astro.props;
 
 // Static (pre-JS / reduced-motion) clip-path, expressed with the same CSS
 // tokens that octagon.ts reads at runtime — both sources resolve identically.
@@ -37,7 +42,7 @@ const staticClipPath = [
     <link rel="stylesheet" href="https://use.typekit.net/edz5xyo.css" />
     <ClientRouter />
   </head>
-  <body>
+  <body data-page={page}>
     <!--
       Three layers, back to front:
         1. Background  — the body itself (--color-background, white)
@@ -179,8 +184,18 @@ const staticClipPath = [
 <script>
   import { initOctagonWobble, octagonController } from "../motion/octagon";
   import { initPageTransitions } from "../motion/page-transitions";
+  import { initHomePage, initAboutPage } from "../motion/page-init";
   initOctagonWobble();
   initPageTransitions();
+
+  // Dispatches to the current page's own bootstrapping on every load, cold
+  // or SPA — see page-init.ts's header comment for why this replaces each
+  // page having its own <script data-astro-rerun>.
+  document.addEventListener("astro:page-load", () => {
+    const page = document.body.dataset.page;
+    if (page === "home") initHomePage();
+    else if (page === "about") initAboutPage();
+  });
 
   if (import.meta.env.DEV) {
     // Console/devtool access, mirroring __beatModel — e.g.

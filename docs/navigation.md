@@ -4,12 +4,19 @@ The site navigation is a persistent horizontal list fixed to the top-right of th
 
 ## Stacking and background
 
-The nav sits at `--z-nav: 25`, above `--z-shapes: 20` — the ambient scroll-shapes layer is
-purely decorative (see `docs/scroll-shapes.md`) and must never render on top of real UI.
+The nav sits at `--z-nav: 35`, above `--z-shapes: 20` and `--z-foreground: 30` (below only
+the logo at `--z-logo: 40`). It's above the ambient scroll-shapes layer for the same reason
+noted below (purely decorative, must never render on top of real UI — see
+`docs/scroll-shapes.md`), and above the foreground/chapter stage because persistent nav
+must always be clickable: a chapter paper tall enough to linger with its bulk over the
+nav's screen position (About, whose paper doesn't fly fully away) would otherwise silently
+block clicks there — nav was originally z-25, below the foreground stage's z-30, and this
+was confirmed as a real bug (a real click on "Home" timed out, intercepted by the paper's
+own content) before being fixed.
 The white backing (`--color-nav-background`) keeps it legible against the mat and shapes
 regardless of z-order — text color alone (`--color-nav-text`, which tracks the live mat
 color) isn't enough once shapes can pass behind it. The shapes layer is
-`pointer-events: none`, so hover/click on nav links were never blocked by it; the fix was
+`pointer-events: none`, so hover/click on nav links were never blocked by it; that part was
 purely about paint order and contrast.
 
 ## Backdrop (rotated paper)
@@ -47,13 +54,13 @@ It is mounted directly in `src/layouts/Base.astro` (the root layout), so it appe
 Almost every property is a Tailwind utility class applied directly in the markup. The one
 exception is the backdrop's offsets/rotation (see **Backdrop** above), which live in a
 scoped `<style>` block for the reason explained there. `right-(--mat-safe-inset-x)` and
-`z-25` reference the same named tokens (`--mat-safe-inset-x`, `--z-nav`) as CSS-variable/
+`z-35` reference the same named tokens (`--mat-safe-inset-x`, `--z-nav`) as CSS-variable/
 bare-numeral utilities rather than arbitrary values (see CLAUDE.md's Tailwind conventions).
 
 | Property              | Value                                                            | Where it's set                                                      |
 | --------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------- |
 | Position              | `fixed; top: 24px; right: --mat-safe-inset-x`                    | `fixed top-6 right-(--mat-safe-inset-x)` on `<nav>`                 |
-| Z-index               | `--z-nav` (25, above `--z-shapes` at 20)                         | `z-25` on `<nav>`                                                   |
+| Z-index               | `--z-nav` (35, above `--z-foreground` at 30)                     | `z-35` on `<nav>`                                                   |
 | Background            | `--color-nav-background` (white)                                 | `bg-nav-background` on `.nav-backdrop`                              |
 | Backdrop offsets/tilt | `--nav-backdrop-inset-*` tokens; `rotate(-0.5deg)`               | `.nav-backdrop` scoped style in `Nav.astro`; tokens in `global.css` |
 | Color (resting)       | `--color-nav-text` (#cfc6b6); `--color-ink` for the current item | `text-nav-text` / `text-ink` on each `<a>`                          |

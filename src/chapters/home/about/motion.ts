@@ -16,6 +16,17 @@
  * unreachable), not a feel value — same reasoning octagon.ts already
  * applies to its own runtime-measured insets.
  *
+ * The formula MUST include the paper's own starting distance from the
+ * viewport top (its rendered `top`, e.g. from the top-32 positioning in
+ * Content.astro) — an earlier version of this formula only used
+ * `height - innerHeight`, which silently assumed the paper starts flush
+ * with the viewport top (y=0). It doesn't, so every scroll fell exactly
+ * that offset short of the true end, permanently hiding the last stretch
+ * of copy — confirmed by a real user, reproduced by scrolling to the
+ * measured max scrollY and finding the paper's rendered bottom still
+ * below the viewport edge. rect.top (read before any transform is
+ * applied) gives that offset for free from the same measurement.
+ *
  * DWELL_BEATS (how much scroll the read takes) stays a hand-tuned constant
  * — re-tune it if the pacing feels off, same as any other feel value in
  * this codebase (e.g. timeline/script.ts's CONFIG.pitch). It's exported so
@@ -50,11 +61,10 @@ const motion: ChapterMotion = {
       return tl;
     }
 
+    const rect = container.getBoundingClientRect();
     const travelPx = Math.max(
       0,
-      container.getBoundingClientRect().height -
-        window.innerHeight +
-        TRAVEL_BUFFER_PX,
+      rect.top + rect.height - window.innerHeight + TRAVEL_BUFFER_PX,
     );
     tl.to(container, { y: -travelPx, ease: "none", duration: DWELL_BEATS }, 0);
     return tl;

@@ -97,12 +97,20 @@
 
   /* ── Z-index layers ─────────────────────────────────────────────────────────
      Documents the layer stack. Use var(--z-*) in CSS style blocks; in HTML
-     use the matching numeric Tailwind class (z-10, z-20, z-30, z-40) since
-     Tailwind v4 does not generate named z-* utilities from @theme. */
+     use the matching numeric Tailwind class (z-10, z-20, z-30, z-35, z-40)
+     since Tailwind v4 does not generate named z-* utilities from @theme. */
   --z-midground: 10; /* the animated mat polygon */
   --z-shapes: 20; /* scroll-shapes ambient layer — above mat, below nav */
-  --z-nav: 25; /* primary navigation — above shapes so it's never occluded */
   --z-foreground: 30; /* chapter stage — must be pointer-events:none on the container */
+  /* Above the foreground stage, not below (25 originally) — persistent nav
+     must always be clickable. A tall, non-flying-away paper (About) can
+     linger with its bulk overlapping the nav's screen position at max
+     scroll; at z-25 that silently made "Home" unclickable there (confirmed
+     via a real click that timed out — the paper's own content intercepted
+     the pointer event). Chapter papers still visually pass over the nav
+     during a brief fly-away on Home, same as before — this only changes who
+     wins in the cases that matter functionally. */
+  --z-nav: 35;
   --z-logo: 40; /* logo — topmost persistent UI */
 
   /* ── Chapter layout ──────────────────────────────────────────────────────── */

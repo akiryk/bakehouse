@@ -119,6 +119,18 @@ export function initPageEngine(
 ): BeatModel | undefined {
   if (!config.useScrollEngine) return undefined;
 
+  // Kill any ScrollTrigger left over from a previous call. initPageEngine is
+  // now re-run on every visit to a page (data-astro-rerun on the calling
+  // <script> — see index.astro/about.astro), including repeat visits within
+  // the same SPA session. Astro's cross-page navigation discards each page's
+  // own spacer/papers (they aren't transition:persist-ed), but GSAP doesn't
+  // know that — a ScrollTrigger isn't automatically killed just because its
+  // trigger element left the DOM, so without this, every repeat visit to a
+  // page would leave one more orphaned trigger still registered globally.
+  // Nothing else in this app uses ScrollTrigger, so this is safe to do
+  // unconditionally.
+  ScrollTrigger.getAll().forEach((st) => st.kill());
+
   const papers = Array.from(
     document.querySelectorAll<HTMLElement>("[data-chapter]"),
   );
