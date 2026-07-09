@@ -21,6 +21,17 @@
  * this codebase (e.g. timeline/script.ts's CONFIG.pitch). It's exported so
  * about.script.ts's chapter() placement always matches this timeline's own
  * duration instead of a second, independently-drifting copy of the number.
+ *
+ * Reduced motion needs an explicit check HERE, not just the generic
+ * handling in engine.ts. Under reduced motion, initPageEngine jumps every
+ * chapter's beats() timeline to progress(1) — correct for a normal
+ * chapter, where that's its final REVEALED state, but wrong for this one:
+ * the "beat" here IS the paper's reading-progress scroll, so progress(1)
+ * would jump straight to the fully-scrolled end, permanently hiding the
+ * beginning of the copy (confirmed visually — the page loaded mid-paragraph
+ * with no way to scroll back up to the title). Returning an empty timeline
+ * under reduced motion makes that progress(1) a no-op, leaving the paper at
+ * its natural position with the beginning of the content visible.
  */
 import gsap from "gsap";
 import type { ChapterMotion } from "../../../motion/engine";
@@ -33,13 +44,18 @@ const TRAVEL_BUFFER_PX = 40;
 
 const motion: ChapterMotion = {
   beats(container) {
+    const tl = gsap.timeline();
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      return tl;
+    }
+
     const travelPx = Math.max(
       0,
       container.getBoundingClientRect().height -
         window.innerHeight +
         TRAVEL_BUFFER_PX,
     );
-    const tl = gsap.timeline();
     tl.to(container, { y: -travelPx, ease: "none", duration: DWELL_BEATS }, 0);
     return tl;
   },

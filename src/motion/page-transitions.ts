@@ -36,6 +36,15 @@ import { pageTransition } from "../config/page-transition";
  * comment) — the same closure persists across every navigation. */
 let didExpand = false;
 
+/** octagonController.expandToEdges/springToHome and the opacity tweens below
+ * are all directly callable regardless of motion preference — they don't
+ * check prefers-reduced-motion themselves (they're imperative methods, not
+ * a persistent gsap.matchMedia() context like octagon.ts's own ambient
+ * wobble). This module is what decides whether to invoke them at all. */
+function prefersReducedMotion(): boolean {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
 /** Fades whatever primary content is on screen. `.foreground-stage` exists
  * on every page (rendered unconditionally by Base.astro); the scroll-shapes
  * layer only exists on pages that mount it (currently just home) — querying
@@ -59,8 +68,11 @@ function fadeOutContent(durationMs: number): Promise<void> {
   });
 }
 
-/** Mat expand + content fade, in parallel, over the same duration. */
+/** Mat expand + content fade, in parallel, over the same duration. Under
+ * reduced motion, resolves immediately — the navigation proceeds at
+ * whatever speed the fetch itself takes, no animation delay added. */
 async function runExit(): Promise<void> {
+  if (prefersReducedMotion()) return;
   didExpand = true;
   await Promise.all([
     octagonController.expandToEdges(pageTransition.exitDurationMs),
@@ -109,8 +121,16 @@ function updateNavActiveState(): void {
 
 /** Mat spring-back (only if this navigation actually expanded it), then the
  * paper fades in once it's settled — matching the exit's "mat moves, then
- * content" ordering in reverse. */
+ * content" ordering in reverse. Under reduced motion, skips both tweens and
+ * jumps the paper straight to visible — content must still be reachable
+ * without motion (CLAUDE.md), and since runExit() never expanded the mat
+ * for a reduced-motion navigation, didExpand is already false here too. */
 async function runEnter(): Promise<void> {
+  if (prefersReducedMotion()) {
+    const stage = document.querySelector<HTMLElement>(".foreground-stage");
+    if (stage) gsap.set(stage, { opacity: 1 });
+    return;
+  }
   if (didExpand) {
     await octagonController.springToHome(pageTransition.enterMatDurationMs);
     didExpand = false;

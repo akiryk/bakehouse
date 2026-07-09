@@ -133,6 +133,24 @@
   z-index: 5;
 }
 
+/* About: reduced-motion content reachability. Under reduced motion, its
+   beats() returns an empty timeline (see chapters/home/about/motion.ts) —
+   the paper stays pinned in the fixed foreground stage at its natural
+   position rather than being scrubbed by scroll, so content taller than
+   one viewport would otherwise be permanently unreachable (page-level
+   scroll doesn't move anything fixed). Giving the paper's own content box
+   a scrollbar keeps every paragraph reachable without depending on motion.
+   Targets Chapter.astro's internal class from here (not About's own
+   Content.astro) because Astro's style scoping doesn't cross into a child
+   component's own markup — see CLAUDE.md's chapter-specific-styles-in-
+   global.css convention. */
+@media (prefers-reduced-motion: reduce) {
+  [data-chapter="about"] .chapter-paper-content {
+    max-height: calc(100vh - 160px);
+    overflow-y: auto;
+  }
+}
+
 /* Base styles */
 body {
   margin: 0;
