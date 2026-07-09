@@ -32,8 +32,8 @@ script (see **Declaring a midground color** and `docs/motion.md`'s "Scroll geome
 
 ### Wiring chapters into a page
 
-Each `.astro` page imports its chapter content and motion explicitly, plus the page script
-that places them on the scroll timeline:
+Each `.astro` page imports its chapter content and passes a `page` identity to `<Base>` —
+it does **not** call `initPageEngine` itself:
 
 ```astro
 ---
@@ -42,26 +42,26 @@ import IntroContent from "../chapters/home/intro/Content.astro";
 import ServicesContent from "../chapters/home/services/Content.astro";
 ---
 
-<Base>
+<Base page="home">
   <IntroContent />
   <ServicesContent />
 </Base>
-
-<script>
-  import { initPageEngine } from "../motion/engine";
-  import { pages } from "../config/pages";
-  import { PAGE } from "../motion/home.script";
-  import introMotion from "../chapters/home/intro/motion";
-  import servicesMotion from "../chapters/home/services/motion";
-
-  initPageEngine(pages.home, PAGE, [introMotion, servicesMotion]);
-</script>
 ```
 
-The motion array passed to `initPageEngine` must match the `chapters` order in `pages.ts`.
-`PAGE` (the resolved page script, built with `definePageScript`/`at()` in
-`src/motion/<page>.script.ts`) is what actually places each chapter's dwell window and its
-enter/exit motion on the scroll timeline — see `docs/motion.md`.
+The actual `initPageEngine` call lives in `src/motion/page-init.ts`'s `initHomePage()` (one
+function per page), dispatched by `Base.astro`'s own script on every `astro:page-load`
+(cold load or SPA navigation). This isn't a stylistic choice — a per-page `<script>` calling
+`initPageEngine` directly cannot be made to reliably re-run on a repeat visit to that page
+under Astro's `<ClientRouter />`; see `docs/motion.md` → "Calling `initPageEngine` under the
+SPA router" for the full reasoning. Adding a new page means adding a matching
+`init<PageName>Page()` function to `page-init.ts` and a case in `Base.astro`'s dispatch, not
+a `<script>` tag on the page itself.
+
+The motion array passed to `initPageEngine` (inside that function) must match the
+`chapters` order in `pages.ts`. `PAGE` (the resolved page script, built with
+`definePageScript`/`at()` in `src/motion/<page>.script.ts`) is what actually places each
+chapter's dwell window and its enter/exit motion on the scroll timeline — see
+`docs/motion.md`.
 
 ---
 

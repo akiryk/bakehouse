@@ -29,6 +29,77 @@ paper is. (See `architecture.md` → the engine's contract.)
 
 ---
 
+## Calling `initPageEngine` under the SPA router — `page-init.ts`
+
+`initPageEngine` needs to run **on every visit to a page**, including a _repeat_ visit in
+the same browser session (Home → About → Home) — the site navigates via Astro's
+`<ClientRouter />` (see `docs/navigation.md` and the page-transitions epic), not full
+reloads, and each navigation discards the previous page's spacer/ScrollTrigger along with
+its non-persisted DOM.
+
+**The obvious approach doesn't work.** Each page used to call `initPageEngine` from its own
+bundled `<script>` tag. Astro's router never re-executes a `<script>` whose exact text it's
+already run once in the session (`detectScriptExecuted` in
+`node_modules/astro/dist/transitions/swap-functions.js`) — so a _second_ visit to a page
+silently skipped `initPageEngine` entirely: no spacer, no scroll height, "scrolling doesn't
+work." This is real, not theoretical — it shipped and was caught by manual testing, not by
+`astro check` or any of the automated verification.
+
+Astro's documented escape hatch, `data-astro-rerun`, turns out to be **incompatible with
+bundled/TypeScript scripts entirely** (confirmed via `astro check`'s own diagnostics, not
+assumed from docs):
+
+- Any `<script>` with inline content **and any attribute other than `src`** is silently
+  forced into unprocessed `is:inline` treatment — no `import`, no TypeScript.
+- The compiler explicitly rejects combining `data-astro-rerun` with `src` on the same tag:
+  _"Two out of three is OK: `type="module"`, `src`, or `data-astro-rerun`."_
+
+So there's no way to give a bundled, import-using script tag `data-astro-rerun` at all.
+
+**The fix: centralize.** `src/motion/page-init.ts` exports one function per page
+(`initHomePage()`, `initAboutPage()`) — ordinary bundled TypeScript, each dynamically
+importing its own page script + chapter motions so Vite still code-splits them per page.
+`Base.astro`'s own `<script>` (which only ever needs to run **once** — see `octagon.ts`'s
+singleton reasoning above) imports `page-init.ts` and registers **one**
+`astro:page-load` listener that dispatches by page identity:
+
+```ts
+document.addEventListener("astro:page-load", () => {
+  const page = document.body.dataset.page;
+  if (page === "home") initHomePage();
+  else if (page === "about") initAboutPage();
+});
+```
+
+This listener never needs to re-run — it's the thing that fires on every future
+navigation, cold load or SPA (see the page-transitions module's own notes on
+`astro:page-load` firing in both cases). Page identity comes from a `page` prop on
+`Base.astro`, rendered as `document.body.dataset.page` — `<body>` isn't `transition:persist`-ed,
+so this is always correct for whichever page is currently live.
+
+**The same constraint applies to any other per-page init script.** `ScrollShapes.astro`
+used to have its own `data-astro-rerun` script calling `initScrollShapes` — same problem,
+same fix: that component now renders only its container + config; `initHomePage()` finds
+the container and calls `initScrollShapes` directly. Adding scroll-shapes to a new page
+means adding that same call to that page's `page-init.ts` function, not just the component
+import.
+
+**Re-running these functions must stay idempotent.** Once a page's init function can
+genuinely run more than once per session, anything it registers globally (not scoped to
+that page's own now-discarded DOM) needs explicit cleanup first, or it leaks:
+
+- `initPageEngine` now calls `ScrollTrigger.getAll().forEach(st => st.kill())` before
+  creating new ones — GSAP does **not** auto-kill a `ScrollTrigger` just because its
+  `trigger` element left the DOM.
+- `initScrollShapes` tracks its previous `gsap.ticker` callback in a module-level variable
+  and removes it before adding a new one, for the same reason.
+
+Neither of these was a directly _reported_ symptom, but both are guaranteed slow leaks
+(one more orphaned trigger/ticker callback per repeat visit) once repeat navigation is the
+normal case rather than an edge case.
+
+---
+
 ## Scroll geometry
 
 Geometry is authored, not computed from fixed constants — it comes directly from where
