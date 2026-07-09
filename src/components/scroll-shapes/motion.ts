@@ -15,6 +15,14 @@ interface Shape {
    * This makes motion fully reversible — scrolling back up retraces the same path.
    */
   scrollEntry: number;
+  /**
+   * Added on top of the scrollY formula above (see positionShape). Only
+   * non-zero for a shape that would actually be visible at the current
+   * scroll position when it's set — see the entrance-offset computation in
+   * initScrollShapes for why every OTHER shape must stay at exactly 0, not
+   * some shared "push everything down" amount.
+   */
+  entranceOffset: number;
 }
 
 function rand(min: number, max: number): number {
@@ -133,26 +141,22 @@ export function initScrollShapes(
     const segment = zoneRange / totalCount;
     const shapes: Shape[] = [];
 
-    // Entrance offset — added on top of the scroll formula below, added
-    // downward by one full viewport height at rest so every shape starts
-    // off the bottom of the screen regardless of where its own formula
-    // would otherwise place it (including ones scrollZone.start puts
-    // partly on-screen at load). Eased to 0 by playEntrance() on a
-    // "bh:paper-entered" signal — see initScrollShapes's header comment.
-    // Not module-level: each generation of shapes (one per initScrollShapes
-    // call) gets its own, closed over by positionShape/the ticker below.
-    let entranceOffset = vh;
-
-    // Pure function of scrollY (plus the entrance offset) — reversible by
-    // design. Applied unconditionally, even when the result is fully
-    // off-screen: skipping the update while out of view left the previous
-    // transform in place, so a shape could freeze mid-transit and sit
-    // "poking" into the viewport instead of clearing it.
+    // Pure function of scrollY plus the shape's own entranceOffset —
+    // reversible by design. Applied unconditionally, even when the result
+    // is fully off-screen: skipping the update while out of view left the
+    // previous transform in place, so a shape could freeze mid-transit and
+    // sit "poking" into the viewport instead of clearing it.
     const positionShape = (shape: Shape, scrollY: number): void => {
       const y =
-        vh - (scrollY - shape.scrollEntry) * shape.speed + entranceOffset;
+        vh - (scrollY - shape.scrollEntry) * shape.speed + shape.entranceOffset;
       gsap.set(shape.el, { y });
     };
+
+    // How far below the viewport's bottom edge a pushed-down shape clears
+    // by, once its entranceOffset has fully collapsed the gap — a shape
+    // landing exactly flush with the edge (0px clearance) is a plausible
+    // subpixel-clipping risk; this just guarantees a clean gap beforehand.
+    const ENTRANCE_PUSH_BUFFER_PX = 40;
 
     for (let i = 0; i < totalCount; i++) {
       const el = document.createElement("div");
@@ -173,13 +177,29 @@ export function initScrollShapes(
       const attrs = randomizeAttrs(config, sizePool[i]);
       const scrollEntry = zoneStart + i * segment + rand(0, segment);
 
-      const shape: Shape = { el, scrollEntry, ...attrs };
+      const shape: Shape = { el, scrollEntry, entranceOffset: 0, ...attrs };
+
+      // The entrance ("fly in from below, then stop exactly where the
+      // formula already puts it") must only touch shapes that would
+      // actually be visible right now — restY is this shape's position
+      // with zero entranceOffset, i.e. exactly what positionShape would
+      // already compute. A shape that's naturally off-screen (above OR
+      // below the fold) needs no push at all: forcing one on it would make
+      // it visibly sweep THROUGH the viewport while its offset eases away,
+      // even though it was never meant to be seen at all — a phantom shape
+      // "flying in from nowhere" that isn't actually part of the entrance.
+      const restY = vh - (window.scrollY - scrollEntry) * shape.speed;
+      const visibleAtRest = restY < vh && restY + shape.h > 0;
+      shape.entranceOffset = visibleAtRest
+        ? Math.max(0, vh - restY) + ENTRANCE_PUSH_BUFFER_PX
+        : 0;
+
       applyAttrs(shape);
       container.appendChild(el);
       // Position before first paint so a fresh load never shows a shape
-      // sitting at its default (untransformed) spot — it starts wherever the
-      // formula places it for the current scroll position (fully off-screen
-      // at scrollY 0, or partly visible if scrollZone.start puts it there).
+      // sitting at its default (untransformed) spot, or — for a
+      // visible-at-rest shape — anywhere but already pushed below the
+      // fold, ready for its entrance.
       positionShape(shape, window.scrollY);
       shapes.push(shape);
     }
@@ -190,19 +210,19 @@ export function initScrollShapes(
     };
     gsap.ticker.add(activeTicker);
 
-    // Eases entranceOffset (currently `vh`, set above) down to 0. The
-    // ticker above reads entranceOffset fresh every frame via positionShape,
-    // so this proxy tween "just works" without touching gsap.set(shape.el)
-    // directly or fighting the ticker's own per-frame writes.
+    // Eases every shape's own entranceOffset to 0 in parallel (harmless,
+    // instant no-op for the shapes that were already at 0). The ticker
+    // above reads shape.entranceOffset fresh every frame via
+    // positionShape, so tweening the property directly on each shape
+    // object "just works" without touching gsap.set(shape.el) here or
+    // fighting the ticker's own per-frame writes. GSAP tweens plain object
+    // properties in an array just as well as DOM styles — same technique
+    // octagon.ts uses for its wobble offsets.
     activeEnterListener = () => {
-      const proxy = { offset: entranceOffset };
-      gsap.to(proxy, {
-        offset: 0,
+      gsap.to(shapes, {
+        entranceOffset: 0,
         duration: config.entranceDurationMs / 1000,
         ease: config.entranceEase,
-        onUpdate: () => {
-          entranceOffset = proxy.offset;
-        },
       });
     };
     document.addEventListener("bh:paper-entered", activeEnterListener);
