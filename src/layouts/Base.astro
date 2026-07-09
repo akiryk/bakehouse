@@ -67,10 +67,27 @@ const staticClipPath = [
 
     <!-- Layer 3: Foreground stage — full-screen canvas, no layout opinion.
          pointer-events-none here so the transparent area of the stage doesn't
-         block the nav. Chapter.astro restores pointer-events-auto on each paper. -->
-    <div class="foreground-stage fixed inset-0 z-30 pointer-events-none">
+         block the nav. Chapter.astro restores pointer-events-auto on each paper.
+         opacity-0: page-transitions.ts fades this in on every load (cold or
+         in-app) as part of the enter sequence — baked in here, not set via
+         gsap.fromTo's immediateRender, so there's no flash of full-opacity
+         content before the fade starts (confirmed by sampling computed
+         opacity during a cold load: fromTo's immediate-render was snapping
+         it from a briefly-visible 1 down to 0 rather than starting there).
+         The <noscript> fallback below is what keeps this from being
+         permanently invisible if JS never runs. -->
+    <div
+      class="foreground-stage fixed inset-0 z-30 pointer-events-none opacity-0"
+    >
       <slot />
     </div>
+    <noscript>
+      <style>
+        .foreground-stage {
+          opacity: 1 !important;
+        }
+      </style>
+    </noscript>
 
     <Nav />
 

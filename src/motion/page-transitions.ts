@@ -20,11 +20,21 @@
  *     this module's concern.
  *   astro:page-load → fires after every swap AND on a cold `window load` —
  *     one code path for both, which is exactly what "the enter animation
- *     plays on every load" needs. Enter is wired here in a later step.
+ *     plays on every load" needs. This is the enter hook.
  */
 import gsap from "gsap";
 import { octagonController } from "./octagon";
 import { pageTransition } from "../config/page-transition";
+
+/** Set by runExit(), read by runEnter() — the mat only needs to spring back
+ * if this navigation actually expanded it. Without this guard, the very
+ * first (cold) astro:page-load would call springToHome() on a mat that was
+ * never expanded, interrupting its ambient wobble mid-leg for no reason
+ * (killTweensOf + a tween to {dx:0,dy:0} is a visible "snap toward center"
+ * even when nothing needed correcting). Module-level state is safe here
+ * because this script only ever executes once per session (see the header
+ * comment) — the same closure persists across every navigation. */
+let didExpand = false;
 
 /** Fades whatever primary content is on screen. `.foreground-stage` exists
  * on every page (rendered unconditionally by Base.astro); the scroll-shapes
@@ -51,10 +61,61 @@ function fadeOutContent(durationMs: number): Promise<void> {
 
 /** Mat expand + content fade, in parallel, over the same duration. */
 async function runExit(): Promise<void> {
+  didExpand = true;
   await Promise.all([
     octagonController.expandToEdges(pageTransition.exitDurationMs),
     fadeOutContent(pageTransition.exitDurationMs),
   ]);
+}
+
+/** Fades the incoming page's paper in from 0. Not gated on didExpand — per
+ * the product decision, this plays on every load, cold or in-app, so a
+ * direct/refreshed load of any page gets the same reveal moment.
+ *
+ * Starts from a plain gsap.to(), not fromTo() — the 0 starting state is
+ * baked into the SSR markup (opacity-0 class in Base.astro) rather than
+ * forced here via immediateRender, which was measurably causing a flash
+ * (content briefly visible at full opacity, then snapped to 0, then faded
+ * back in) on a cold load, before this element's own animation had a
+ * chance to run. */
+function fadeInPaper(durationMs: number): void {
+  const stage = document.querySelector<HTMLElement>(".foreground-stage");
+  if (!stage) return;
+  gsap.to(stage, {
+    opacity: 1,
+    duration: durationMs / 1000,
+    ease: pageTransition.enterPaperEase,
+  });
+}
+
+/** Toggles the persisted nav's active-link color to match the current URL.
+ * Nav.astro's SSR output only reflects whichever page it was FIRST rendered
+ * on (transition:persist means the node — and its baked-in classes — never
+ * re-renders on a later swap), so this is the only thing that keeps it
+ * correct across an SPA navigation. Runs immediately on astro:page-load,
+ * not gated behind the mat/paper sequence — there's no reason to delay a
+ * plain class toggle. Services/Work are still href="#" placeholders, not
+ * real routes — a.pathname for those would resolve to the *current* page
+ * (a bare "#" href resolves against the current URL), so they're excluded
+ * rather than being incorrectly matched as "active". */
+function updateNavActiveState(): void {
+  document.querySelectorAll<HTMLAnchorElement>("nav a[href]").forEach((a) => {
+    if (a.getAttribute("href") === "#") return;
+    const isActive = a.pathname === location.pathname;
+    a.classList.toggle("text-ink", isActive);
+    a.classList.toggle("text-nav-text", !isActive);
+  });
+}
+
+/** Mat spring-back (only if this navigation actually expanded it), then the
+ * paper fades in once it's settled — matching the exit's "mat moves, then
+ * content" ordering in reverse. */
+async function runEnter(): Promise<void> {
+  if (didExpand) {
+    await octagonController.springToHome(pageTransition.enterMatDurationMs);
+    didExpand = false;
+  }
+  fadeInPaper(pageTransition.enterPaperDurationMs);
 }
 
 export function initPageTransitions(): void {
@@ -63,5 +124,10 @@ export function initPageTransitions(): void {
     event.loader = async () => {
       await Promise.all([runExit(), originalLoader()]);
     };
+  });
+
+  document.addEventListener("astro:page-load", () => {
+    updateNavActiveState();
+    runEnter();
   });
 }

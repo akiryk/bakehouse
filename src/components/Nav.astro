@@ -4,9 +4,19 @@
 // The white backdrop rotates like the logo's (see .logo-backdrop in Base.astro);
 // the nav content itself stays upright and in place.
 // Items, styling, and hover behavior: see docs/navigation.md.
+//
+// Active-link color is computed here from Astro.url.pathname so a cold
+// load of any page is correct without depending on JS — but because this
+// element is transition:persist-ed (see Base.astro), this SSR output only
+// ever applies to whichever page it was FIRST rendered on in a session;
+// motion/page-transitions.ts's updateNavActiveState() is what keeps it
+// correct across a later client-side navigation.
 
+const { pathname } = Astro.url;
 const linkClasses =
   "block p-1.5 font-sans text-lg font-normal no-underline transition-colors duration-200 ease-in-out hover:text-ink";
+const activeClass = (href: string) =>
+  pathname === href ? "text-ink" : "text-nav-text";
 ---
 
 <nav
@@ -16,8 +26,12 @@ const linkClasses =
 >
   <div class="nav-backdrop absolute bg-nav-background" aria-hidden="true"></div>
   <ul class="relative m-0 flex list-none px-3 py-0">
-    <li><a href="/" class={`${linkClasses} text-ink`}>Home</a></li>
-    <li><a href="/about" class={`${linkClasses} text-nav-text`}>About</a></li>
+    <li><a href="/" class={`${linkClasses} ${activeClass("/")}`}>Home</a></li>
+    <li>
+      <a href="/about" class={`${linkClasses} ${activeClass("/about")}`}
+        >About</a
+      >
+    </li>
     <li><a href="#" class={`${linkClasses} text-nav-text`}>Services</a></li>
     <li><a href="#" class={`${linkClasses} text-nav-text`}>Work</a></li>
   </ul>
