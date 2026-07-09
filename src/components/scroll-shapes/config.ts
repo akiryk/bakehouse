@@ -75,6 +75,21 @@ export interface ScrollShapesConfig {
    * shapes visual variety instead of a flat, uniform darkening.
    */
   opacity: { min: number; max: number };
+  /**
+   * How the layer flies in from below on a "bh:paper-entered" signal
+   * (dispatched by motion/page-transitions.ts once the incoming page's
+   * paper has finished fading in — see that module for the timing/lead
+   * relative to the paper fade). Every shape's current scroll-formula y
+   * (see motion.ts) is offset downward by one viewport height at rest,
+   * then that offset eases to 0 — shapes arrive exactly where the scroll
+   * formula already places them, they just arrive *from* below rather
+   * than appearing there instantly. This event is simply never heard on a
+   * page that doesn't mount <ScrollShapes />, so it's a harmless no-op
+   * there — no coupling to the page-transition module beyond the event
+   * name.
+   */
+  entranceDurationMs: number;
+  entranceEase: string;
 }
 
 export const defaultConfig: ScrollShapesConfig = {
@@ -87,4 +102,6 @@ export const defaultConfig: ScrollShapesConfig = {
   scrollZone: { start: -400, end: 100_000 },
   speed: { min: 0.3, max: 0.9 },
   opacity: { min: 0.1, max: 1 },
+  entranceDurationMs: 500,
+  entranceEase: "power2.out",
 };

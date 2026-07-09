@@ -12,17 +12,24 @@ export const pageTransition = {
   exitEase: "power1.in",
 
   /** How long the mat takes to spring back to its idle shape on the
-   * incoming page. Overlaps with the paper fade (see enterPaperDelayMs),
+   * incoming page. Overlaps with the paper fade (see enterPaperDelay),
    * not sequential. */
   enterMatDurationMs: 450,
 
   /** How long the incoming page's paper takes to fade in. */
-  enterPaperDurationMs: 400,
-  enterPaperEase: "power1.out",
+  enterPaperDurationMs: 500,
+  enterPaperEase: "circ",
 
-  /** How long after the mat starts springing back the paper starts fading
-   * in. 0 = both start at the same instant. Only applies when the mat is
-   * actually springing (i.e. not a cold load, where there's nothing to
-   * overlap with and the paper just fades in immediately). */
-  enterPaperDelayMs: 0,
+  /** How long (ms) after the mat starts springing back the paper starts
+   * fading in. 0 = both start at the same instant. Only applies when the
+   * mat is actually springing (i.e. not a cold load, where there's nothing
+   * to overlap with and the paper just fades in immediately). */
+  enterPaperDelay: 200,
+
+  /** How long (ms) BEFORE the paper finishes fading in the "bh:paper-
+   * entered" signal fires — the cue a page's own ambient layers (e.g.
+   * ScrollShapes) can listen for to start their own entrance. 0 = fires
+   * exactly as the paper finishes; a positive value fires that much
+   * earlier ("just before" it's fully faded in, per how it read at 0). */
+  shapesEnterLeadMs: 0,
 };

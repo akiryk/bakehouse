@@ -61,18 +61,21 @@ function applyAttrs(shape: Shape): void {
   shape.el.style.opacity = String(shape.opacity);
 }
 
-// The ticker callback from the most recent initScrollShapes() call, if any.
-// ScrollShapes.astro's script now carries data-astro-rerun (a repeat visit
-// to a page mounting this component must re-init, since its container is a
-// fresh, non-persisted element each time) — but gsap.ticker is a *global*,
-// cross-navigation singleton, so without this, every repeat visit would add
-// one more ticker callback forever, each looping over shapes belonging to a
-// container that's already been removed from the DOM.
+// The ticker callback / "paper-entered" listener from the most recent
+// initScrollShapes() call, if any. This is called fresh on every visit to a
+// page mounting <ScrollShapes /> (motion/page-init.ts's initHomePage() —
+// see its own comment for why that replaced a self-contained, re-runnable
+// script tag) — but gsap.ticker and `document` are both *global*,
+// cross-navigation singletons, so without this, every repeat visit would
+// add one more ticker callback / event listener forever, each looping over
+// or referencing shapes belonging to a container that's already been
+// removed from the DOM.
 let activeTicker: (() => void) | null = null;
+let activeEnterListener: (() => void) | null = null;
 
 /**
  * Initializes the scroll-shapes ambient layer. Called on every visit to a
- * page mounting this component (see ScrollShapes.astro's data-astro-rerun).
+ * page mounting this component (see motion/page-init.ts's initHomePage()).
  */
 export function initScrollShapes(
   container: HTMLElement,
@@ -82,7 +85,14 @@ export function initScrollShapes(
     gsap.ticker.remove(activeTicker);
     activeTicker = null;
   }
+  if (activeEnterListener) {
+    document.removeEventListener("bh:paper-entered", activeEnterListener);
+    activeEnterListener = null;
+  }
 
+  // Reduced motion: this layer doesn't run at all (see docs/scroll-shapes.md),
+  // so it never registers a "bh:paper-entered" listener either — a harmless
+  // no-op on the dispatching side, nothing to reach for on this side.
   const reducedMotion = window.matchMedia(
     "(prefers-reduced-motion: reduce)",
   ).matches;
@@ -123,12 +133,24 @@ export function initScrollShapes(
     const segment = zoneRange / totalCount;
     const shapes: Shape[] = [];
 
-    // Pure function of scrollY — reversible by design. Applied unconditionally,
-    // even when the result is fully off-screen: skipping the update while out
-    // of view left the previous transform in place, so a shape could freeze
-    // mid-transit and sit "poking" into the viewport instead of clearing it.
+    // Entrance offset — added on top of the scroll formula below, added
+    // downward by one full viewport height at rest so every shape starts
+    // off the bottom of the screen regardless of where its own formula
+    // would otherwise place it (including ones scrollZone.start puts
+    // partly on-screen at load). Eased to 0 by playEntrance() on a
+    // "bh:paper-entered" signal — see initScrollShapes's header comment.
+    // Not module-level: each generation of shapes (one per initScrollShapes
+    // call) gets its own, closed over by positionShape/the ticker below.
+    let entranceOffset = vh;
+
+    // Pure function of scrollY (plus the entrance offset) — reversible by
+    // design. Applied unconditionally, even when the result is fully
+    // off-screen: skipping the update while out of view left the previous
+    // transform in place, so a shape could freeze mid-transit and sit
+    // "poking" into the viewport instead of clearing it.
     const positionShape = (shape: Shape, scrollY: number): void => {
-      const y = vh - (scrollY - shape.scrollEntry) * shape.speed;
+      const y =
+        vh - (scrollY - shape.scrollEntry) * shape.speed + entranceOffset;
       gsap.set(shape.el, { y });
     };
 
@@ -167,5 +189,22 @@ export function initScrollShapes(
       for (const shape of shapes) positionShape(shape, scrollY);
     };
     gsap.ticker.add(activeTicker);
+
+    // Eases entranceOffset (currently `vh`, set above) down to 0. The
+    // ticker above reads entranceOffset fresh every frame via positionShape,
+    // so this proxy tween "just works" without touching gsap.set(shape.el)
+    // directly or fighting the ticker's own per-frame writes.
+    activeEnterListener = () => {
+      const proxy = { offset: entranceOffset };
+      gsap.to(proxy, {
+        offset: 0,
+        duration: config.entranceDurationMs / 1000,
+        ease: config.entranceEase,
+        onUpdate: () => {
+          entranceOffset = proxy.offset;
+        },
+      });
+    };
+    document.addEventListener("bh:paper-entered", activeEnterListener);
   }
 }

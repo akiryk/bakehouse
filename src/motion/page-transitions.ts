@@ -92,7 +92,16 @@ async function runExit(): Promise<void> {
  * chance to run.
  *
  * delayMs uses GSAP's own `delay`, not setTimeout — the tween is scheduled
- * synchronously either way; only when it visibly starts is offset. */
+ * synchronously either way; only when it visibly starts is offset.
+ *
+ * Also fires a "bh:paper-entered" signal on `document` timed to the
+ * paper's own completion (minus pageTransition.shapesEnterLeadMs, for
+ * "just before" it's fully faded in) — the cue a page's own ambient layers
+ * listen for to start their own entrance (see ScrollShapes' motion.ts).
+ * Dispatched unconditionally, page-agnostic: a page with no listener for
+ * it (e.g. About, which mounts no <ScrollShapes />) just never hears it —
+ * this module doesn't import or know anything about what, if anything,
+ * is listening. */
 function fadeInPaper(durationMs: number, delayMs = 0): void {
   const stage = document.querySelector<HTMLElement>(".foreground-stage");
   if (!stage) return;
@@ -101,6 +110,14 @@ function fadeInPaper(durationMs: number, delayMs = 0): void {
     duration: durationMs / 1000,
     delay: delayMs / 1000,
     ease: pageTransition.enterPaperEase,
+  });
+
+  const signalAtMs = Math.max(
+    0,
+    delayMs + durationMs - pageTransition.shapesEnterLeadMs,
+  );
+  gsap.delayedCall(signalAtMs / 1000, () => {
+    document.dispatchEvent(new Event("bh:paper-entered"));
   });
 }
 
@@ -125,7 +142,7 @@ function updateNavActiveState(): void {
 
 /** Mat spring-back and paper fade-in start together (only if this
  * navigation actually expanded the mat) — overlapping, not sequential.
- * enterPaperDelayMs offsets how long after the mat starts springing the
+ * enterPaperDelay offsets how long after the mat starts springing the
  * paper begins fading in; 0 means both start at the same instant. On a
  * cold load (mat was never expanded, nothing to overlap with) the paper
  * just fades in immediately, ignoring that delay. Under reduced motion,
@@ -149,7 +166,7 @@ async function runEnter(): Promise<void> {
 
   fadeInPaper(
     pageTransition.enterPaperDurationMs,
-    matSpringing ? pageTransition.enterPaperDelayMs : 0,
+    matSpringing ? pageTransition.enterPaperDelay : 0,
   );
 
   await matPromise;
