@@ -24,7 +24,7 @@ export const PAGE = definePageScript({
     at(0, chapter("intro")),
     at(0, exit("intro", { over: 1, ease: "power4.out" })),
     at(0, morph({ from: "--palette-tan", to: "--palette-yellow", over: 1 })),
-    at(0.75, enter("services", { over: 0.75, ease: "expo.out" })),
+    at(0.25, enter("services", { over: 0.75, ease: "expo.out" })),
     at(2.0, exit("services", { over: 1 })),
     at(
       2.0,
