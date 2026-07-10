@@ -48,8 +48,20 @@ export const CONFIG = {
   /** where the current year sits on screen (0 top … 1 bottom) */
   anchor: 0.5,
 
-  /** how far below its resting spot the tape enters from, in vh */
-  enterFrom: 100,
+  /**
+   * How far past the viewport's bottom edge the tape parks before its
+   * entrance, in vh — compile() computes the park position as
+   * yFor(firstYear) + enterFrom (see its own comment), and yFor(firstYear)
+   * === anchor*100 (50 here). The tape is only guaranteed hidden once
+   * yFor(firstYear) + enterFrom > 100 (viewport bottom), i.e. enterFrom >
+   * 100 - anchor*100 = 50 for this anchor. 55 keeps a 5vh safety margin
+   * past that exact threshold — enough to avoid any hairline sliver of
+   * 1993 peeking in from rounding, without adding real travel-time lag
+   * before the tape becomes visible once its entrance starts (a bigger
+   * margin doesn't make hiding "more correct", just slower to arrive).
+   * If anchor ever changes, this threshold (100 - anchor*100) does too.
+   */
+  enterFrom: 55,
 };
 
 // ─── Project stops ────────────────────────────────────────────────────────────
@@ -87,6 +99,13 @@ function placeProjectStops(
           approach: APPROACH_BEATS,
           dwell,
           reveal: [String(project.year)],
+          // Exit duration matches the *next* stop's own approach — both
+          // start at the same beat (this stop's release), so equal
+          // durations keep the card's exit motion and the tape's resumed
+          // motion moving at the same rate instead of one outrunning the
+          // other. Every project shares APPROACH_BEATS, so this is safe to
+          // hardcode to the same constant rather than looking ahead.
+          exitOver: APPROACH_BEATS,
         }),
       ),
     );
@@ -94,6 +113,24 @@ function placeProjectStops(
   }
   return { entries, endBeat: beat };
 }
+
+/**
+ * Entrance choreography: intro -> line -> tape, each starting essentially
+ * as soon as the previous one lands, not on independently-guessed beats.
+ * INTRO settles, then LINE starts almost immediately after (a hair of a
+ * gap so it doesn't read as simultaneous), then the TAPE starts the instant
+ * the line finishes rising — no gap at all. Before this, line and tape
+ * beats were hand-picked independently and left slack (line settled at 1.5,
+ * tape didn't start until 2.0), and — worse — the tape's pre-entrance park
+ * position had its own bug letting early years peek through the whole time
+ * (see compile()'s park-position comment in timeline-kit.ts) — between the
+ * two, numbers were visible well before the line even existed.
+ */
+const INTRO_SHOW_BEAT = 0;
+const INTRO_OVER = 0.5;
+const LINE_GAP_AFTER_INTRO = 0.1;
+const LINE_SHOW_BEAT = INTRO_SHOW_BEAT + INTRO_OVER + LINE_GAP_AFTER_INTRO;
+const LINE_OVER = 0.5;
 
 /**
  * The tape's initial entrance — rises into view and lands on
@@ -108,8 +145,11 @@ function placeProjectStops(
  * rather than an arbitrary blank year. NOTES[1995] still exists and still
  * appears — it just sweeps past during the rise instead of getting its own
  * stop, same as every other note.
+ *
+ * Starts the instant the line finishes (LINE_SHOW_BEAT + LINE_OVER, zero
+ * gap) — "as soon as the line reaches the top of the browser" per request.
  */
-const TAPE_ENTER_BEAT = 2;
+const TAPE_ENTER_BEAT = LINE_SHOW_BEAT + LINE_OVER;
 const TAPE_ENTER_YEAR = 1997;
 const TAPE_ENTER_OVER = 2;
 
@@ -127,19 +167,18 @@ export const SCRIPT = defineScript({
   config: CONFIG,
   sequence: [
     at(
-      0,
+      INTRO_SHOW_BEAT,
       show("intro", {
-        over: 0.5,
+        over: INTRO_OVER,
         from: { opacity: 0, y: 300 },
         ease: "sine.out",
       }),
     ),
 
-    // Line rises in 0.5 beats after intro settles; tape begins traveling simultaneously.
     at(
-      1.0,
+      LINE_SHOW_BEAT,
       show("line", {
-        over: 0.5,
+        over: LINE_OVER,
         from: { opacity: 1, y: "100vh" },
         to: { opacity: 1, y: 0 },
         ease: "power2.out",

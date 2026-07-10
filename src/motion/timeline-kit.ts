@@ -477,16 +477,27 @@ export function compile(
   }
 
   // Park the tape at its pre-entrance position (works for both script styles).
+  // Based on yFor(firstYear) — the tape's own topmost/largest translateY,
+  // reached at zero row-offset — not on the landing year's own restY. Using
+  // restY was a real bug: for a landing year close to firstYear (e.g. 1997,
+  // only 4 years in), restY is already close to its on-screen resting value,
+  // so restY + fromOffset could land the tape only partway below the
+  // viewport instead of fully offscreen — early rows (1993-1995) were
+  // visible peeking in before the entrance ever started. yFor(firstYear) is
+  // always >= any other yFor(year) in range (row-offset only grows with
+  // later years), so parking fromOffset below THAT guarantees every row,
+  // including the very first one, starts below the viewport regardless of
+  // which year enterTape happens to land on.
   const firstEnterTape = allMoments(script).find(
     (m): m is Extract<Moment, { kind: "enterTape" }> => m.kind === "enterTape",
   );
 
   if (firstEnterTape) {
-    const restY = yFor(config, firstEnterTape.at);
+    const topY = yFor(config, config.firstYear);
     const fromOffset = firstEnterTape.fromOffset ?? config.enterFrom ?? 100;
 
     gsap.set(tape, {
-      y: `${restY + fromOffset}vh`,
+      y: `${topY + fromOffset}vh`,
       opacity: firstEnterTape.fromOpacity ?? 1,
     });
   }
@@ -694,8 +705,14 @@ export function compile(
           );
         });
 
-        // Release: exits overlap the start of whatever comes next,
-        // so content "animates away as the years begin scrolling again".
+        // Release: exits overlap the start of whatever comes next, so
+        // content animates away exactly as the years begin scrolling again.
+        // ease matches the tape's own approach-into-the-next-stop tween
+        // (power1.out, above) rather than power1.in — with matching ease
+        // *and* matching duration (callers now pass exitOver === the next
+        // stop's approach, e.g. script.ts's APPROACH_BEATS for both), the
+        // card moves away at the same rate the numbers resume at, instead
+        // of the numbers visibly outrunning a slow, barely-moving card.
         if (!m.persist) {
           (m.reveal ?? []).forEach((r) => {
             const spec = normalizeReveal(r);
@@ -703,7 +720,7 @@ export function compile(
             if (!overlay) return;
             tl.to(
               overlay,
-              { opacity: 0, y: -20, duration: exitOver, ease: "power1.in" },
+              { opacity: 0, y: -28, duration: exitOver, ease: "power1.out" },
               tRelease,
             );
           });
