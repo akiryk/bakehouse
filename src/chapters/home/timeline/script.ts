@@ -26,6 +26,7 @@ import {
   show,
   hide,
   hold,
+  enterTape,
   stopTimelineAt,
   type SequenceEntry,
 } from "@motion/timeline-kit";
@@ -101,16 +102,26 @@ function placeProjectStops(
   return { entries, endBeat: beat };
 }
 
-// Where the 1995 "notes" stop (no project — see NOTES above) sits, and how
-// long it dwells — named so PROJECTS_START_BEAT can reference the same
-// numbers rather than re-deriving them.
-const NOTES_STOP_BEAT = 2;
-const NOTES_STOP_APPROACH = 0.75;
-const NOTES_STOP_DWELL = 3;
+/**
+ * The tape's initial entrance — rises into view and lands on
+ * TAPE_ENTER_YEAR, continuous with the rest of the scroll. No dwell/pause
+ * here: unlike project stops, which deliberately pause, notes are meant to
+ * just go by as the tape travels past them. This used to be a
+ * stopTimelineAt(1995, { dwell: 3 }) with no reveal — a genuine pause on a
+ * note year, which is exactly what "notes just go by" rules out.
+ *
+ * Landing year moved from 1995 to 1997 (2 years later, per request) —
+ * conveniently the tape now lands right as NOTES[1997] itself is showing,
+ * rather than an arbitrary blank year. NOTES[1995] still exists and still
+ * appears — it just sweeps past during the rise instead of getting its own
+ * stop, same as every other note.
+ */
+const TAPE_ENTER_BEAT = 2;
+const TAPE_ENTER_YEAR = 1997;
+const TAPE_ENTER_OVER = 2;
 
-/** Right where the 1995 stop's own approach + dwell ends. */
-const PROJECTS_START_BEAT =
-  NOTES_STOP_BEAT + NOTES_STOP_APPROACH + NOTES_STOP_DWELL;
+/** Right where the tape's entrance finishes. */
+const PROJECTS_START_BEAT = TAPE_ENTER_BEAT + TAPE_ENTER_OVER;
 
 const { entries: projectStops, endBeat: projectsEndBeat } = placeProjectStops(
   PROJECTS,
@@ -142,14 +153,14 @@ export const SCRIPT = defineScript({
       }),
     ),
 
-    at(NOTES_STOP_BEAT, hide("intro", { over: 0.5 })),
+    at(TAPE_ENTER_BEAT, hide("intro", { over: 0.5 })),
 
+    // Tape rises into view and lands on TAPE_ENTER_YEAR — no dwell (see the
+    // comment above). fromOffset isn't set here; it falls back to
+    // CONFIG.enterFrom (100vh), which is what this already used implicitly.
     at(
-      NOTES_STOP_BEAT,
-      stopTimelineAt(1995, {
-        approach: NOTES_STOP_APPROACH,
-        dwell: NOTES_STOP_DWELL,
-      }),
+      TAPE_ENTER_BEAT,
+      enterTape({ at: TAPE_ENTER_YEAR, over: TAPE_ENTER_OVER }),
     ),
 
     // One stopTimelineAt per project (see PROJECTS in projects.ts),
