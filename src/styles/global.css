@@ -166,6 +166,27 @@
   }
 }
 
+/* Timeline: shared position for every project card. Applied to a class on
+   ProductCard.astro's own rendered <figure> (a different component's
+   scope) from here, not from Content.astro's own <style> block — same
+   scoping reason as the About rule above. --tl-line-x is defined on
+   .tl-stage in Content.astro, but custom properties cascade through the
+   DOM regardless of which stylesheet's rule reads them, so referencing it
+   from here works fine as long as the card renders inside .tl-stage (it
+   does).
+   left: clears the vertical line plus its tick/note column.
+   top: 50% + translateY(-50%) matches CONFIG.anchor (0.5) in script.ts —
+   the year currently "current" always sits at 50vh by that config, so
+   this keeps the card vertically centered on whichever year is dwelling
+   without needing per-project logic. If CONFIG.anchor ever changes, this
+   50% needs to change with it (same class of manual-sync point as
+   home.script.ts's chapter() dwellBeats — see that file's comment). */
+.tl-card-anchor {
+  left: calc(var(--tl-line-x) + 6%);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
 /* Base styles */
 body {
   margin: 0;

@@ -180,16 +180,12 @@ const years = Array.from(
     font-size: clamp(1rem, 1.6vw, 1.35rem);
     max-width: 36em;
   }
-
-  /* Shared position for every project card (ProductCard.astro owns its own
-     visual styling — size/shadow/thumb/type — not position; see that
-     component's header comment). Reused from the old .tl-card--winesmarts
-     spot. Sound, not just expedient: no two cards are ever visible at once
-     (see script.ts's placeProjectStops), so there's no overlap risk — only
-     width (ProductCard's size prop) varies card to card. First pass; the
-     plan is to fine-tune per-project positions later if wanted. */
-  .tl-card-anchor {
-    left: calc(var(--tl-line-x) + 4%);
-    top: 14%;
-  }
+  /* .tl-card-anchor (shared position for every project card) lives in
+     global.css, not here — it's applied to a class on ProductCard.astro's
+     own rendered <figure>, a different component's scope, and an
+     Astro <style> block only auto-scopes to elements the OWNING component
+     itself renders. Defining it here compiled without error but never
+     actually matched anything on screen (confirmed: the card was falling
+     back to the browser default for an unpositioned absolute element).
+     See global.css's own comment for the fix and the reasoning. */
 </style>
