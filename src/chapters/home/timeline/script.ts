@@ -12,12 +12,12 @@
  * Editing ripple: use plain TS consts to name anchor points, then reference
  * them across entries so a single change ripples through.
  *
- * Project stops (Epic 18): each of PROJECTS (projects.ts) gets one
+ * Project stops (Epic 18): each of PROJECTS (timeline-content.ts) gets one
  * stopTimelineAt, placed back to back by placeProjectStops() below rather
- * than nine hand-computed beat offsets. Content (year/title/image/size) and
- * timing (dwellBeats, if a project wants to override DEFAULT_DWELL_BEATS)
- * both live in projects.ts — this file only decides *where in the
- * sequence* the whole run of stops starts.
+ * than nine hand-computed beat offsets. Content (year/title/image/size,
+ * dwellBeats/dx/dy overrides) lives in timeline-content.ts — this file only
+ * decides *where in the sequence* the whole run of stops starts. Year
+ * labels (NOTES) live there too, not here — see that file's header.
  */
 
 import {
@@ -30,7 +30,11 @@ import {
   stopTimelineAt,
   type SequenceEntry,
 } from "@motion/timeline-kit";
-import { PROJECTS, DEFAULT_DWELL_BEATS, type Project } from "./projects";
+import {
+  PROJECTS,
+  DEFAULT_DWELL_BEATS,
+  type Project,
+} from "./timeline-content";
 
 // ─── Geometry & feel ──────────────────────────────────────────────────────────
 
@@ -46,17 +50,6 @@ export const CONFIG = {
 
   /** how far below its resting spot the tape enters from, in vh */
   enterFrom: 100,
-};
-
-// ─── Year annotations (riders — they live on the tape and scroll with it) ────
-// Add a note to any year and it appears beside it, fading in/out at the
-// viewport edges automatically (the dissolve is a CSS mask — no choreography).
-
-export const NOTES: Record<number, string> = {
-  1995: "Build first-generation sites for non-profits around SF Bay Area",
-  1997: "Study interaction design at California College of the Arts",
-  2005: "Lead design at a small product studio",
-  2016: "Bakehouse Studio opens in Durango",
 };
 
 // ─── Project stops ────────────────────────────────────────────────────────────
@@ -163,7 +156,7 @@ export const SCRIPT = defineScript({
       enterTape({ at: TAPE_ENTER_YEAR, over: TAPE_ENTER_OVER }),
     ),
 
-    // One stopTimelineAt per project (see PROJECTS in projects.ts),
+    // One stopTimelineAt per project (see PROJECTS in timeline-content.ts),
     // chronological, back to back — no per-project hand-placed beat.
     ...projectStops,
 

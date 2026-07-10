@@ -1,16 +1,19 @@
 /**
- * The timeline's real project data — transcribed from
- * docs/epics/addendum-epic-18-content.md, with two corrections against the
- * actual files in public/timeline/ (the addendum's paths didn't match):
+ * The timeline's content — every project card and every year label, in one
+ * place. Pure content data, no motion: script.ts (the tweak file) decides
+ * *where in the sequence* this shows up and how it moves; this file only
+ * decides *what it says*. Editing a project's wording, dwell time, size, or
+ * position, or adding/removing a year note, never requires touching
+ * script.ts.
+ *
+ * Project data transcribed from docs/epics/addendum-epic-18-content.md, with
+ * two corrections against the actual files in public/timeline/ (the
+ * addendum's paths didn't match):
  *   - 2011: addendum said "npr.jpg"; the real file is "2011-npr.png".
  *   - 2014: addendum said "npr-corepub.jpg" (no year prefix); the real
  *     file is "2014-npr-corepub.jpg".
  * `size` casing in the addendum was inconsistent (Medium/Large/Small/
  * medium/small) — normalized to the lowercase ProductCardSize union here.
- *
- * Pure content data — no motion, no positioning (see docs/architecture.md's
- * "content and motion are decoupled" rule). script.ts's placeProjectStops()
- * is what turns this into scroll-driven stops.
  */
 import type { ProductCardSize } from "@components/timeline/product-card/ProductCard.astro";
 
@@ -23,6 +26,10 @@ export interface Project {
   size: ProductCardSize;
   /** Beats to dwell on this year with the card shown. Default: DEFAULT_DWELL_BEATS. */
   dwellBeats?: number;
+  /** Horizontal nudge off the shared card anchor, in vw. Default: 0. */
+  dx?: number;
+  /** Vertical nudge off the shared card anchor, in vw. Default: 0. */
+  dy?: number;
 }
 
 /** Smart default for a project's dwell — override per project via dwellBeats. */
@@ -96,3 +103,19 @@ export const PROJECTS: Project[] = [
     size: "medium",
   },
 ];
+
+/**
+ * Year annotations — riders that live on the tape and scroll with it. Add a
+ * note to any year and it appears beside it, fading in/out at the viewport
+ * edges automatically (the dissolve is a CSS mask — no choreography).
+ *
+ * A year should never carry both a note and a project card at the same
+ * time — if it does, that's a mistake to fix here (move or reword the
+ * note), not something the motion layer should try to reconcile.
+ */
+export const NOTES: Record<number, string> = {
+  1995: "Build first-generation sites for non-profits around SF Bay Area",
+  1997: "Study interaction design at California College of the Arts",
+  2003: "Lead design at a small product studio",
+  2016: "Bakehouse Studio opens in Durango",
+};

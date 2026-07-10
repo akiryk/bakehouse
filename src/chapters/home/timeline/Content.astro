@@ -7,13 +7,14 @@
 //   [data-el="tape"]     the year strip — enterTape / travel / stopTimelineAt
 //   [data-overlay="id"]  independent content revealed at stops
 //
-// Years render from script.ts (NOTES/CONFIG) so there's one tweak file.
-// Project overlays render from projects.ts (PROJECTS) — one ProductCard per
-// entry, sharing a single on-screen anchor (see .tl-card-anchor below).
+// Years render from script.ts's CONFIG (geometry) plus timeline-content.ts's
+// NOTES (labels). Project overlays render from timeline-content.ts's
+// PROJECTS — one ProductCard per entry, sharing a single on-screen anchor
+// (see .tl-card-anchor below) nudged per-project via dx/dy.
 import Chapter from "../../../components/Chapter.astro";
 import ProductCard from "@components/timeline/product-card/ProductCard.astro";
-import { CONFIG, NOTES } from "./script";
-import { PROJECTS } from "./projects";
+import { CONFIG } from "./script";
+import { NOTES, PROJECTS } from "./timeline-content";
 
 const years = Array.from(
   { length: CONFIG.lastYear - CONFIG.firstYear + 1 },
@@ -83,8 +84,9 @@ const years = Array.from(
 
     <!-- Overlays — revealed by stopTimelineAt(); every card shares one
          on-screen anchor (.tl-card-anchor below) since no two are ever
-         visible at the same time (see script.ts) — only width, via
-         ProductCard's size prop, varies card to card. -->
+         visible at the same time (see script.ts) — width (size prop) and
+         a small dx/dy nudge (--tl-card-dx/--tl-card-dy, read by that same
+         CSS rule) are what vary card to card. -->
     <div class="absolute inset-0">
       {
         PROJECTS.map((project) => (
@@ -95,6 +97,7 @@ const years = Array.from(
             size={project.size}
             dataOverlay={String(project.year)}
             class="tl-card-anchor"
+            style={`--tl-card-dx: ${project.dx ?? 0}vw; --tl-card-dy: ${project.dy ?? 0}vw;`}
           />
         ))
       }

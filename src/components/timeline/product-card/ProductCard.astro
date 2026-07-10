@@ -23,6 +23,8 @@ interface Props {
   alt?: string;
   /** Position is the caller's responsibility — see the header comment. */
   class?: string;
+  /** Passed straight through to the figure — e.g. custom-property offsets. */
+  style?: string;
 }
 
 const {
@@ -33,6 +35,7 @@ const {
   dataOverlay,
   alt = title,
   class: className,
+  style,
 } = Astro.props;
 
 // Tailwind's scanner needs literal class strings somewhere in the source —
@@ -54,6 +57,7 @@ const widthClass: Record<ProductCardSize, string> = {
     widthClass[size],
     className,
   ]}
+  style={style}
   data-overlay={dataOverlay}
 >
   <img src={image} alt={alt} class="tl-thumb w-full block" />

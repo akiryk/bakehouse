@@ -122,7 +122,7 @@
      components/timeline/product-card/ProductCard.astro. */
   --timeline-card-width-small: 32vw;
   --timeline-card-width-medium: 44vw;
-  --timeline-card-width-large: 60vw;
+  --timeline-card-width-large: 54vw;
 
   /* ── Typography ──────────────────────────────────────────────────────────── */
   --font-serif:
@@ -174,16 +174,20 @@
    DOM regardless of which stylesheet's rule reads them, so referencing it
    from here works fine as long as the card renders inside .tl-stage (it
    does).
-   left: clears the vertical line plus its tick/note column.
+   left: clears the vertical line plus its tick/note column, then nudges by
+   --tl-card-dx — a per-project offset (timeline-content.ts's Project.dx,
+   in vw, default 0) set inline per card so every card isn't glued to the
+   exact same spot.
    top: 50% + translateY(-50%) matches CONFIG.anchor (0.5) in script.ts —
    the year currently "current" always sits at 50vh by that config, so
    this keeps the card vertically centered on whichever year is dwelling
    without needing per-project logic. If CONFIG.anchor ever changes, this
    50% needs to change with it (same class of manual-sync point as
-   home.script.ts's chapter() dwellBeats — see that file's comment). */
+   home.script.ts's chapter() dwellBeats — see that file's comment).
+   --tl-card-dy is the vertical counterpart to --tl-card-dx, same source. */
 .tl-card-anchor {
-  left: calc(var(--tl-line-x) + 6%);
-  top: 50%;
+  left: calc(var(--tl-line-x) + 6% + var(--tl-card-dx, 0vw));
+  top: calc(50% + var(--tl-card-dy, 0vw));
   transform: translateY(-50%);
 }
 
