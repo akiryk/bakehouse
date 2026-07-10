@@ -1,0 +1,92 @@
+---
+// ProductCard — a project thumbnail + title + description, revealed by the
+// timeline chapter's stopTimelineAt()/reveal mechanism (motion/timeline-kit.ts).
+//
+// Deliberately does NOT own its own on-screen position — where it lands is
+// contextual to whoever places it (currently: Content.astro's shared
+// .tl-card-anchor class, since no two cards are ever visible at once). This
+// component only owns its own visual shape/size, so it stays reusable beyond
+// the timeline chapter if that's ever wanted.
+//
+// data-overlay is the id the reveal mechanism targets directly (see
+// RevealSpec in timeline-kit.ts) — pass the caller's own unique id via the
+// dataOverlay prop, e.g. the project's year.
+export type ProductCardSize = "small" | "medium" | "large";
+
+interface Props {
+  image: string;
+  title: string;
+  description: string;
+  size: ProductCardSize;
+  dataOverlay: string;
+  /** Defaults to `title` — most project images don't need distinct alt text. */
+  alt?: string;
+  /** Position is the caller's responsibility — see the header comment. */
+  class?: string;
+}
+
+const {
+  image,
+  title,
+  description,
+  size,
+  dataOverlay,
+  alt = title,
+  class: className,
+} = Astro.props;
+
+// Tailwind's scanner needs literal class strings somewhere in the source —
+// a template-interpolated name (`w-(--timeline-card-width-${size})`) isn't
+// reliably picked up, since Tailwind scans source text, not runtime values.
+// A lookup whose VALUES are the literal strings keeps all three visible to
+// the scanner regardless of which one is chosen at runtime.
+const widthClass: Record<ProductCardSize, string> = {
+  small: "w-(--timeline-card-width-small)",
+  medium: "w-(--timeline-card-width-medium)",
+  large: "w-(--timeline-card-width-large)",
+};
+---
+
+<figure
+  class:list={[
+    "tl-card",
+    "absolute m-0 bg-white opacity-0",
+    widthClass[size],
+    className,
+  ]}
+  data-overlay={dataOverlay}
+>
+  <img src={image} alt={alt} class="tl-thumb w-full block" />
+  <figcaption>
+    <h3 class="font-serif font-normal text-ink">{title}</h3>
+    <p class="font-serif m-0 text-caption">{description}</p>
+  </figcaption>
+</figure>
+
+<style>
+  /* Asymmetric padding — bottom 1.2rem vs 1rem top/sides is an intentional
+     visual weight decision below the thumbnail.
+     box-shadow is a specific designer value, not a standard Tailwind shadow token. */
+  .tl-card {
+    padding: 1rem 1rem 1.2rem;
+    box-shadow: var(--shadow-card);
+  }
+
+  /* 3/2 aspect ratio — no Tailwind token (aspect-video = 16/9). object-fit
+     keeps a real image from distorting to fill that box (the placeholder
+     this replaced was a plain gradient div with no intrinsic size to
+     preserve). */
+  .tl-thumb {
+    aspect-ratio: 3 / 2;
+    object-fit: cover;
+  }
+
+  /* clamp() for fluid type on card headings and captions. */
+  .tl-card h3 {
+    font-size: clamp(1.3rem, 2.2vw, 1.7rem);
+    margin: 0.9rem 0 0.2rem;
+  }
+  .tl-card figcaption p {
+    font-size: clamp(0.95rem, 1.5vw, 1.1rem);
+  }
+</style>
