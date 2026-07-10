@@ -11,6 +11,13 @@
  *
  * Editing ripple: use plain TS consts to name anchor points, then reference
  * them across entries so a single change ripples through.
+ *
+ * Project stops (Epic 18): each of PROJECTS (projects.ts) gets one
+ * stopTimelineAt, placed back to back by placeProjectStops() below rather
+ * than nine hand-computed beat offsets. Content (year/title/image/size) and
+ * timing (dwellBeats, if a project wants to override DEFAULT_DWELL_BEATS)
+ * both live in projects.ts — this file only decides *where in the
+ * sequence* the whole run of stops starts.
  */
 
 import {
@@ -19,9 +26,10 @@ import {
   show,
   hide,
   hold,
-  travel,
   stopTimelineAt,
+  type SequenceEntry,
 } from "@motion/timeline-kit";
+import { PROJECTS, DEFAULT_DWELL_BEATS, type Project } from "./projects";
 
 // ─── Geometry & feel ──────────────────────────────────────────────────────────
 
@@ -50,6 +58,65 @@ export const NOTES: Record<number, string> = {
   2016: "Bakehouse Studio opens in Durango",
 };
 
+// ─── Project stops ────────────────────────────────────────────────────────────
+
+/**
+ * Beats to ease into a stop that's a different year from wherever the tape
+ * currently is — passed explicitly on every generated stopTimelineAt call
+ * so this helper's cumulative math can never silently drift from what the
+ * compiler actually places. stopTimelineAt's own internal default is also
+ * 0.75, but relying on that implicitly would mean two places having to
+ * agree by coincidence rather than by construction.
+ */
+const APPROACH_BEATS = 0.75;
+
+/**
+ * Places one stopTimelineAt per project, back to back in chronological
+ * order — project N's stop begins right where project N-1's ended (its own
+ * approach + dwell). No explicit travel() between stops: stopTimelineAt
+ * always eases directly from wherever the tape currently is to its target
+ * year over `approach` beats (see timeline-kit.ts's compile()), so chaining
+ * stops with no dead scroll between them is enough for a first pass.
+ */
+function placeProjectStops(
+  projects: Project[],
+  startBeat: number,
+): { entries: SequenceEntry[]; endBeat: number } {
+  let beat = startBeat;
+  const entries: SequenceEntry[] = [];
+  for (const project of projects) {
+    const dwell = project.dwellBeats ?? DEFAULT_DWELL_BEATS;
+    entries.push(
+      at(
+        beat,
+        stopTimelineAt(project.year, {
+          approach: APPROACH_BEATS,
+          dwell,
+          reveal: [String(project.year)],
+        }),
+      ),
+    );
+    beat += APPROACH_BEATS + dwell;
+  }
+  return { entries, endBeat: beat };
+}
+
+// Where the 1995 "notes" stop (no project — see NOTES above) sits, and how
+// long it dwells — named so PROJECTS_START_BEAT can reference the same
+// numbers rather than re-deriving them.
+const NOTES_STOP_BEAT = 2;
+const NOTES_STOP_APPROACH = 0.75;
+const NOTES_STOP_DWELL = 3;
+
+/** Right where the 1995 stop's own approach + dwell ends. */
+const PROJECTS_START_BEAT =
+  NOTES_STOP_BEAT + NOTES_STOP_APPROACH + NOTES_STOP_DWELL;
+
+const { entries: projectStops, endBeat: projectsEndBeat } = placeProjectStops(
+  PROJECTS,
+  PROJECTS_START_BEAT,
+);
+
 // ─── The storyboard ───────────────────────────────────────────────────────────
 
 export const SCRIPT = defineScript({
@@ -75,38 +142,24 @@ export const SCRIPT = defineScript({
       }),
     ),
 
-    at(2, hide("intro", { over: 0.5 })),
+    at(NOTES_STOP_BEAT, hide("intro", { over: 0.5 })),
 
     at(
-      2,
+      NOTES_STOP_BEAT,
       stopTimelineAt(1995, {
-        dwell: 3,
+        approach: NOTES_STOP_APPROACH,
+        dwell: NOTES_STOP_DWELL,
       }),
     ),
 
-    // First project stop: WineSmarts at 2000.
-    at(
-      5,
-      stopTimelineAt(2000, {
-        dwell: 2,
-        reveal: [
-          {
-            id: "winesmarts",
-            from: { opacity: 0, y: 100 },
-            to: { y: 50 },
-          },
-        ],
-      }),
-    ),
+    // One stopTimelineAt per project (see PROJECTS in projects.ts),
+    // chronological, back to back — no per-project hand-placed beat.
+    ...projectStops,
 
-    // A quick zip forward…
-    at(6, travel({ to: 2010, over: 1.25, ease: "power1.inOut" })),
-
-    // …into a second stop, demonstrating a different reveal position/size.
-    at(6.15, stopTimelineAt(2011, { dwell: 2.5, reveal: ["sample-2011"] })),
-
-    // Cruise to the present, then a beat of rest to close the chapter.
-    at(9.4, travel({ to: 2026, over: 4 })),
-    at(13.4, hold(1)),
+    // Trailing rest, right after the last project's own stop ends. 2026
+    // (Rainday, the last project) matches CONFIG.lastYear exactly, so this
+    // is already the tape's true end — no travel() to a later year needed,
+    // unlike the old two-example script.
+    at(projectsEndBeat, hold(1)),
   ],
 });
