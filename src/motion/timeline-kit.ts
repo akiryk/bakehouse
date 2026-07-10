@@ -713,6 +713,16 @@ export function compile(
         // stop's approach, e.g. script.ts's APPROACH_BEATS for both), the
         // card moves away at the same rate the numbers resume at, instead
         // of the numbers visibly outrunning a slow, barely-moving card.
+        //
+        // y: -70vh, not a small nudge — matching duration/ease alone still
+        // read as "the card barely moves" (a ~28px nudge is nothing next to
+        // the tape sweeping a whole approach's worth of years). -70vh moves
+        // the card's own center from the 50vh anchor to -20vh — comfortably
+        // off the top of the viewport by the time the tween ends — putting
+        // it in the same visual ballpark as how far the tape itself travels
+        // over one approach (commonly several hundred px, same duration),
+        // so the two read as leaving together instead of the numbers
+        // visibly outrunning an almost-stationary, merely-fading card.
         if (!m.persist) {
           (m.reveal ?? []).forEach((r) => {
             const spec = normalizeReveal(r);
@@ -720,7 +730,12 @@ export function compile(
             if (!overlay) return;
             tl.to(
               overlay,
-              { opacity: 0, y: -28, duration: exitOver, ease: "power1.out" },
+              {
+                opacity: 0,
+                y: "-70vh",
+                duration: exitOver,
+                ease: "power1.out",
+              },
               tRelease,
             );
           });
