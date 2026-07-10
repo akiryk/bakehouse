@@ -2,11 +2,19 @@
 // ProductCard — a project thumbnail + title + description, revealed by the
 // timeline chapter's stopTimelineAt()/reveal mechanism (motion/timeline-kit.ts).
 //
-// Deliberately does NOT own its own on-screen position — where it lands is
-// contextual to whoever places it (currently: Content.astro's shared
-// .tl-card-anchor class, since no two cards are ever visible at once). This
-// component only owns its own visual shape/size, so it stays reusable beyond
-// the timeline chapter if that's ever wanted.
+// Deliberately does NOT own its own on-screen position — the caller wraps it
+// in its own positioning element (currently: Content.astro's .tl-card-anchor
+// div). That positioning MUST live on a wrapper, not on this component's own
+// root element: the reveal mechanism animates this element's `y` via GSAP,
+// and GSAP fights with a CSS percentage transform (like the centering
+// translateY(-50%) .tl-card-anchor needs) on the *same* element — it mostly
+// preserves the % correctly, but at some viewport sizes it silently resolves
+// the whole transform to flat pixels and drops the -50% entirely, snapping
+// the card to its top edge instead of centering it. Confirmed via a real
+// bug: large-size cards, which are tall enough to make the misplacement
+// obvious, went top-aligned at 1512×824 and 1728×1000 despite the exact same
+// CSS working at 1440×900. Keeping the static transform off this component
+// entirely sidesteps the interaction regardless of GSAP's internal heuristics.
 //
 // data-overlay is the id the reveal mechanism targets directly (see
 // RevealSpec in timeline-kit.ts) — pass the caller's own unique id via the
@@ -21,10 +29,6 @@ interface Props {
   dataOverlay: string;
   /** Defaults to `title` — most project images don't need distinct alt text. */
   alt?: string;
-  /** Position is the caller's responsibility — see the header comment. */
-  class?: string;
-  /** Passed straight through to the figure — e.g. custom-property offsets. */
-  style?: string;
 }
 
 const {
@@ -34,8 +38,6 @@ const {
   size,
   dataOverlay,
   alt = title,
-  class: className,
-  style,
 } = Astro.props;
 
 // Tailwind's scanner needs literal class strings somewhere in the source —
@@ -51,13 +53,7 @@ const widthClass: Record<ProductCardSize, string> = {
 ---
 
 <figure
-  class:list={[
-    "tl-card",
-    "absolute m-0 bg-white opacity-0",
-    widthClass[size],
-    className,
-  ]}
-  style={style}
+  class:list={["tl-card", "m-0 bg-white opacity-0", widthClass[size]]}
   data-overlay={dataOverlay}
 >
   <img src={image} alt={alt} class="tl-thumb w-full block" />

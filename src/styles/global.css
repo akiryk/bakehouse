@@ -166,18 +166,25 @@
   }
 }
 
-/* Timeline: shared position for every project card. Applied to a class on
-   ProductCard.astro's own rendered <figure> (a different component's
-   scope) from here, not from Content.astro's own <style> block — same
-   scoping reason as the About rule above. --tl-line-x is defined on
-   .tl-stage in Content.astro, but custom properties cascade through the
-   DOM regardless of which stylesheet's rule reads them, so referencing it
-   from here works fine as long as the card renders inside .tl-stage (it
-   does).
+/* Timeline: shared position for every project card. Applied to a wrapper div
+   in Content.astro around each <ProductCard> — deliberately NOT to
+   ProductCard's own rendered <figure>, and not from Content.astro's own
+   <style> block either (scoping reason: see the About rule above). The
+   wrapper split (rather than just a scoping fix) matters here: the reveal
+   mechanism GSAP-animates the figure's own `y`, and GSAP fighting a CSS
+   percentage transform on the *same* element occasionally drops the -50%
+   entirely at certain viewport sizes (seen: large cards top-aligning
+   instead of centering at 1512×824 and 1728×1000). Keeping this transform
+   on an outer element GSAP never touches sidesteps that regardless of
+   GSAP's internal heuristics — see ProductCard.astro's header comment.
+   --tl-line-x is defined on .tl-stage in Content.astro, but custom
+   properties cascade through the DOM regardless of which stylesheet's rule
+   reads them, so referencing it from here works fine as long as the
+   wrapper renders inside .tl-stage (it does).
    left: clears the vertical line plus its tick/note column, then nudges by
    --tl-card-dx — a per-project offset (timeline-content.ts's Project.dx,
-   in vw, default 0) set inline per card so every card isn't glued to the
-   exact same spot.
+   in vw, default 0) set inline per wrapper so every card isn't glued to
+   the exact same spot.
    top: 50% + translateY(-50%) matches CONFIG.anchor (0.5) in script.ts —
    the year currently "current" always sits at 50vh by that config, so
    this keeps the card vertically centered on whichever year is dwelling
@@ -186,6 +193,7 @@
    home.script.ts's chapter() dwellBeats — see that file's comment).
    --tl-card-dy is the vertical counterpart to --tl-card-dx, same source. */
 .tl-card-anchor {
+  position: absolute;
   left: calc(var(--tl-line-x) + 6% + var(--tl-card-dx, 0vw));
   top: calc(50% + var(--tl-card-dy, 0vw));
   transform: translateY(-50%);

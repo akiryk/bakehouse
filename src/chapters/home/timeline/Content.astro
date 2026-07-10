@@ -86,19 +86,26 @@ const years = Array.from(
          on-screen anchor (.tl-card-anchor below) since no two are ever
          visible at the same time (see script.ts) — width (size prop) and
          a small dx/dy nudge (--tl-card-dx/--tl-card-dy, read by that same
-         CSS rule) are what vary card to card. -->
+         CSS rule) are what vary card to card. The anchor lives on this
+         wrapper div, not on ProductCard itself — see global.css's
+         .tl-card-anchor comment for why that split matters (GSAP animates
+         the card's own `y`; a static centering transform can't safely
+         share that element). -->
     <div class="absolute inset-0">
       {
         PROJECTS.map((project) => (
-          <ProductCard
-            image={project.image}
-            title={project.title}
-            description={project.description}
-            size={project.size}
-            dataOverlay={String(project.year)}
+          <div
             class="tl-card-anchor"
             style={`--tl-card-dx: ${project.dx ?? 0}vw; --tl-card-dy: ${project.dy ?? 0}vw;`}
-          />
+          >
+            <ProductCard
+              image={project.image}
+              title={project.title}
+              description={project.description}
+              size={project.size}
+              dataOverlay={String(project.year)}
+            />
+          </div>
         ))
       }
     </div>
