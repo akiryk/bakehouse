@@ -117,6 +117,13 @@
   --chapter-paper-width: 75vw; /* paper occupies 75% of the viewport */
   --min-h-chapter: 60vh; /* minimum card height before content fills it */
 
+  /* ── Timeline product card ───────────────────────────────────────────────── */
+  /* Width steps for ProductCard's `size` prop (small/medium/large) — see
+     components/timeline/product-card/ProductCard.astro. */
+  --timeline-card-width-small: 32vw;
+  --timeline-card-width-medium: 44vw;
+  --timeline-card-width-large: 60vw;
+
   /* ── Typography ──────────────────────────────────────────────────────────── */
   --font-serif:
     "adobe-caslon-pro", "Big Caslon", "Hoefler Text", Georgia, serif;
