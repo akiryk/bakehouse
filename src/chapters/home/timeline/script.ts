@@ -151,9 +151,17 @@ export const SCRIPT = defineScript({
     // Tape rises into view and lands on TAPE_ENTER_YEAR — no dwell (see the
     // comment above). fromOffset isn't set here; it falls back to
     // CONFIG.enterFrom (100vh), which is what this already used implicitly.
+    // ease: "none" (constant speed, no deceleration into the landing) —
+    // same reasoning travel() uses it by default: enterTape here hands off
+    // with zero gap straight into the first project's approach (its own
+    // power1.out, which decelerates from full speed at ITS start). Without
+    // this override, enterTape's default power2.out decelerates the tape
+    // to near-zero right at 1997, then the approach immediately re-
+    // accelerates — a real stop-then-go on a note year, which "notes just
+    // go by" rules out just as much as an authored dwell would.
     at(
       TAPE_ENTER_BEAT,
-      enterTape({ at: TAPE_ENTER_YEAR, over: TAPE_ENTER_OVER }),
+      enterTape({ at: TAPE_ENTER_YEAR, over: TAPE_ENTER_OVER, ease: "none" }),
     ),
 
     // One stopTimelineAt per project (see PROJECTS in timeline-content.ts),
