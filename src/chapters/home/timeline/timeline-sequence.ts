@@ -145,11 +145,18 @@ export const SEQUENCE: SequenceEntry[] = [
       over: LINE_OVER,
       from: { opacity: 1, y: "100vh" },
       to: { opacity: 1, y: 0 },
-      ease: "power2.out",
+      ease: "sine.out",
     }),
   ),
 
-  at(TAPE_ENTER_BEAT, hide("intro", { over: 0.5 })),
+  // to: { y: -90 } — hide()'s own default (-18px) is a small nudge, not a
+  // real "fly up and out" like the product cards get; this is a bigger
+  // rise than default but deliberately far short of the cards' -70vh
+  // (that distance is calibrated to match the tape's own scroll rate,
+  // which doesn't apply to intro — it's not racing anything). Overridden
+  // per-call, not by changing hide()'s own default, so any other element
+  // that calls hide() later keeps the original small-nudge behavior.
+  at(3, hide("intro", { over: 0.5, to: { y: -90 } })),
 
   // ease: "none" (constant speed, no deceleration into the landing) — the
   // tape hands off with zero gap straight into the first project's

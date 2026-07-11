@@ -58,7 +58,7 @@ export interface Project {
 }
 
 /** Smart default for a project's dwell — override per project via dwellBeats. */
-export const DEFAULT_DWELL_BEATS = 2;
+export const DEFAULT_DWELL_BEATS = 1.5;
 
 export const PROJECTS: Project[] = [
   {

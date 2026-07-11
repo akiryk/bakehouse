@@ -6,8 +6,8 @@
  *   0–1  intro exits; services enters; mat morphs tan → sage
  *   1    services chapter (0 dwell beats)
  *   1–2  services exits; mat morphs sage → slate
- *   3–31.85  timeline chapter dwell (28.85 beats)
- *   31.85–32.85  trailing rest
+ *   2.5–26.85  timeline chapter dwell (24.35 beats)
+ *   26.85–27.85  trailing rest
  *
  * chapter("timeline", { dwellBeats }) MUST be kept in sync with the
  * timeline chapter's OWN script total (chapters/home/timeline/script.ts's
@@ -27,11 +27,12 @@
  * beats), then to 37.85 when the entrance was retimed again (intro/line/
  * tape now hand off with near-zero gaps instead of independently-picked
  * beats, moving the tape's entrance 0.9 beats earlier), then to 28.85 when
- * timeline-content.ts's DEFAULT_DWELL_BEATS dropped from 3 to 2 (9 fewer
- * total beats across the 9 project stops) — same footgun, different cause
- * each time: any change to the entrance timing, to DEFAULT_DWELL_BEATS, or
- * to an individual project's dwellBeats shifts this chapter's total and
- * must be re-synced here by hand.
+ * DEFAULT_DWELL_BEATS dropped from 3 to 2, then to 24.35 when it dropped
+ * again to 1 (and the chapter's own start beat moved from 3 to 2.5) — same
+ * footgun, different cause every time: any change to the entrance timing,
+ * to when the chapter itself starts, to DEFAULT_DWELL_BEATS, or to an
+ * individual project's dwellBeats shifts this chapter's total and must be
+ * re-synced here by hand.
  */
 
 import {
@@ -48,14 +49,14 @@ export const PAGE = definePageScript({
     at(0, chapter("intro")),
     at(0, exit("intro", { over: 1, ease: "power4.out" })),
     at(0, morph({ from: "--palette-tan", to: "--palette-yellow", over: 1 })),
-    at(0.25, enter("services", { over: 0.75, ease: "expo.out" })),
+    at(0.25, enter("services", { over: 0.75, ease: "power4.out" })),
     at(2.0, exit("services", { over: 1 })),
     at(
       2.0,
       morph({ from: "--palette-yellow", to: "--palette-slate", over: 1 }),
     ),
-    at(3, chapter("timeline", { dwellBeats: 28.85 })),
+    at(2.5, chapter("timeline", { dwellBeats: 24.35 })),
 
-    at(31.85, hold(1)),
+    at(26.85, hold(1)),
   ],
 });

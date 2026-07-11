@@ -151,7 +151,15 @@ export type Moment = MomentBase &
         to?: ShowTweenVars;
         ease?: GsapEase;
       }
-    | { kind: "hide"; id: string; over: number }
+    | {
+        kind: "hide";
+        id: string;
+        over: number;
+        /** Exit-state overrides, merged into { opacity: 0, y: -18 }. */
+        to?: ShowTweenVars;
+        /** Easing. Default: "power1.in" */
+        ease?: GsapEase;
+      }
     | { kind: "hold"; beats: number }
     | {
         kind: "enterTape";
@@ -618,7 +626,13 @@ export function compile(
         if (!target) break;
         tl.to(
           target,
-          { opacity: 0, y: -18, duration: m.over, ease: "power1.in" },
+          {
+            opacity: 0,
+            y: -18,
+            duration: m.over,
+            ease: m.ease ?? "power1.in",
+            ...m.to,
+          },
           start,
         );
         break;
@@ -866,10 +880,18 @@ export const show = (id: string, o: ShowOpts = {}): Moment => ({
   offset: o.offset,
 });
 
-export const hide = (id: string, o: { over?: number } & Opts = {}): Moment => ({
+type HideOpts = {
+  over?: number;
+  to?: ShowTweenVars;
+  ease?: GsapEase;
+} & Opts;
+
+export const hide = (id: string, o: HideOpts = {}): Moment => ({
   kind: "hide",
   id,
   over: o.over ?? 0.6,
+  to: o.to,
+  ease: o.ease,
   withPrevious: o.withPrevious,
   offset: o.offset,
 });
