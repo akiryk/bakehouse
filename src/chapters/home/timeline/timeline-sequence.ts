@@ -46,10 +46,17 @@ export const LINE_OVER = 0.5;
 
 /**
  * The tape's initial entrance — rises into view and lands on
- * TAPE_ENTER_YEAR, continuous with the rest of the scroll. No dwell/pause:
- * unlike project stops, which deliberately pause, notes are meant to just
- * go by as the tape travels past them. Starts the instant the line
+ * TAPE_ENTER_YEAR, continuous with the rest of the scroll: no dwell/pause
+ * on arrival, unlike project stops, which deliberately pause (see the
+ * ease: "none" comment below for why). Starts the instant the line
  * finishes (LINE_SHOW_BEAT + LINE_OVER, zero gap).
+ *
+ * TAPE_ENTER_YEAR currently matches CONFIG.firstYear (script.ts) — the
+ * tape simply enters on its own first year. Kept as its own constant
+ * rather than importing CONFIG here to avoid a circular import
+ * (script.ts imports SEQUENCE from this file); if you want the tape to
+ * land somewhere other than the first year, this is safe to change
+ * independently.
  */
 export const TAPE_ENTER_BEAT = LINE_SHOW_BEAT + LINE_OVER;
 export const TAPE_ENTER_YEAR = 1997;
@@ -149,9 +156,9 @@ export const SEQUENCE: SequenceEntry[] = [
   // approach (its own power1.out, which decelerates from full speed at ITS
   // start). Without this override, enterTape's default power2.out
   // decelerates the tape to near-zero right at TAPE_ENTER_YEAR, then the
-  // approach immediately re-accelerates — a real stop-then-go on a note
-  // year, which "notes just go by" rules out just as much as an authored
-  // dwell would.
+  // approach immediately re-accelerates — a real, visible stop-then-go
+  // stutter right at the landing, even though nothing is actually
+  // authored to dwell there.
   at(
     TAPE_ENTER_BEAT,
     enterTape({ at: TAPE_ENTER_YEAR, over: TAPE_ENTER_OVER, ease: "none" }),

@@ -7,10 +7,10 @@
 //   [data-el="tape"]     the year strip — enterTape / travel / stopTimelineAt
 //   [data-overlay="id"]  independent content revealed at stops
 //
-// Years render from script.ts's CONFIG (geometry) plus timeline-content.ts's
-// NOTES (labels). Project overlays render from timeline-content.ts's
-// PROJECTS — one ProductCard per entry, sharing a single on-screen anchor
-// (see .tl-card-anchor below) nudged per-project via dx/dy.
+// Years render from script.ts's CONFIG (geometry). Project overlays render
+// from timeline-content.ts's PROJECTS — one ProductCard per entry, sharing
+// a single on-screen anchor (see .tl-card-anchor below) nudged per-project
+// via dx/dy.
 //
 // .tl-stage is pointer-events-auto, not -none — this is a paperless
 // (paper=false) chapter, so unlike the other chapters there's no
@@ -21,7 +21,7 @@
 import Chapter from "../../../components/Chapter.astro";
 import ProductCard from "@components/timeline/product-card/ProductCard.astro";
 import { CONFIG } from "./script";
-import { NOTES, PROJECTS } from "./timeline-content";
+import { PROJECTS } from "./timeline-content";
 
 const years = Array.from(
   { length: CONFIG.lastYear - CONFIG.firstYear + 1 },
@@ -78,11 +78,6 @@ const years = Array.from(
                 class="tl-tick w-0.5 -ml-px scale-x-0 origin-left bg-(--color-tl-year-active)"
                 aria-hidden="true"
               />
-              {NOTES[year] && (
-                <span class="tl-note font-light text-(--color-tl-note)">
-                  {NOTES[year]}
-                </span>
-              )}
             </div>
           ))
         }
@@ -189,14 +184,6 @@ const years = Array.from(
     height: 2.25em;
   }
 
-  /* clamp() for fluid note type. padding-left spaces notes off the tick mark
-     (visual alignment, not a token-expressible value). max-width in em for
-     reading width that scales with type size. */
-  .tl-note {
-    padding-left: 1.6rem;
-    font-size: clamp(1rem, 1.6vw, 1.35rem);
-    max-width: 36em;
-  }
   /* .tl-card-anchor (shared position for every project card) lives in
      global.css, not here — it's applied to a class on ProductCard.astro's
      own rendered <figure>, a different component's scope, and an

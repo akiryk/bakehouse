@@ -81,7 +81,6 @@
      White at varying opacity, designed to sit on the colored mat background. */
   --color-tl-year: rgba(255, 255, 255, 0.35); /* muted year numbers */
   --color-tl-year-active: var(--palette-white); /* highlighted/active year */
-  --color-tl-note: rgba(255, 255, 255, 0.8); /* note labels */
   --color-tl-body: rgba(255, 255, 255, 0.92); /* body text on colored mat */
 
   /* ── Palette utilities ───────────────────────────────────────────────────────

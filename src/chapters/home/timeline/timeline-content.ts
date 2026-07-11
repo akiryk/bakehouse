@@ -1,10 +1,9 @@
 /**
- * The timeline's content — every project card and every year label, in one
- * place. Pure content data, no motion: script.ts (the tweak file) decides
- * *where in the sequence* this shows up and how it moves; this file only
- * decides *what it says*. Editing a project's wording, dwell time, size, or
- * position, or adding/removing a year note, never requires touching
- * script.ts.
+ * The timeline's content — every project card, in one place. Pure content
+ * data, no motion: script.ts/timeline-sequence.ts decide *where in the
+ * sequence* this shows up and how it moves; this file only decides *what
+ * it says*. Editing a project's wording, dwell time, size, or position
+ * never requires touching either of those.
  *
  * Project data transcribed from docs/epics/addendum-epic-18-content.md, with
  * two corrections against the actual files in public/timeline/ (the
@@ -88,7 +87,7 @@ export const PROJECTS: Project[] = [
   },
   {
     year: 2011,
-    title: "NPR",
+    title: "NPR Digital Services",
     description:
       "I managed user experience design for NPR member stations starting in 2010.",
     image: "/timeline/2011-npr.png",
@@ -131,19 +130,3 @@ export const PROJECTS: Project[] = [
     size: "medium",
   },
 ];
-
-/**
- * Year annotations — riders that live on the tape and scroll with it. Add a
- * note to any year and it appears beside it, fading in/out at the viewport
- * edges automatically (the dissolve is a CSS mask — no choreography).
- *
- * A year should never carry both a note and a project card at the same
- * time — if it does, that's a mistake to fix here (move or reword the
- * note), not something the motion layer should try to reconcile.
- */
-export const NOTES: Record<number, string> = {
-  // 1995: "Started building first-generation websites for non-profits around the SF Bay Area",
-  // 1998: "Enrolled in interaction design program at California College of the Arts",
-  // 2003: "Lead design at a small product studio",
-  // 2016: "Bakehouse Studio opens in Durango",
-};
