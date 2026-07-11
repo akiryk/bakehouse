@@ -179,6 +179,8 @@ export type Moment = MomentBase &
         persist?: boolean;
         /** beats the exit fade takes as the tape resumes (default 0.5) */
         exitOver?: number;
+        /** easing for the exit fade/slide (default "power1.out") */
+        exitEase?: GsapEase;
       }
     | { kind: "morph"; from: PaletteToken; to: PaletteToken; over: number }
   );
@@ -654,6 +656,7 @@ export function compile(
         const tRelease = start + dur; // end of dwell — tape resumes here
         const revealOver = m.revealOver ?? 0.6;
         const exitOver = m.exitOver ?? 0.5;
+        const exitEase = m.exitEase ?? "power1.out";
 
         if (approach > 0) {
           tl.to(
@@ -707,12 +710,16 @@ export function compile(
 
         // Release: exits overlap the start of whatever comes next, so
         // content animates away exactly as the years begin scrolling again.
-        // ease matches the tape's own approach-into-the-next-stop tween
-        // (power1.out, above) rather than power1.in — with matching ease
-        // *and* matching duration (callers now pass exitOver === the next
-        // stop's approach, e.g. script.ts's APPROACH_BEATS for both), the
-        // card moves away at the same rate the numbers resume at, instead
-        // of the numbers visibly outrunning a slow, barely-moving card.
+        // ease defaults to matching the tape's own approach-into-the-next-
+        // stop tween (power1.out, above) rather than power1.in — with
+        // matching ease *and* matching duration (callers default exitOver
+        // to the next stop's approach, e.g. timeline-sequence.ts's
+        // APPROACH_BEATS for both), the card moves away at the same rate
+        // the numbers resume at, instead of the numbers visibly outrunning
+        // a slow, barely-moving card. Both exitOver and exitEase are
+        // per-stop overrides (see stopTimelineAt's options) — overriding
+        // exitOver away from the next stop's approach re-introduces that
+        // mismatch, so change it deliberately, not by accident.
         //
         // y: -70vh, not a small nudge — matching duration/ease alone still
         // read as "the card barely moves" (a ~28px nudge is nothing next to
@@ -734,7 +741,7 @@ export function compile(
                 opacity: 0,
                 y: "-70vh",
                 duration: exitOver,
-                ease: "power1.out",
+                ease: exitEase,
               },
               tRelease,
             );
@@ -890,6 +897,7 @@ export const stopTimelineAt = (
     revealOver?: number;
     persist?: boolean;
     exitOver?: number;
+    exitEase?: GsapEase;
   } & Opts = {},
 ): Moment => ({
   kind: "stopTimelineAt",
@@ -900,6 +908,7 @@ export const stopTimelineAt = (
   revealOver: o.revealOver,
   persist: o.persist,
   exitOver: o.exitOver,
+  exitEase: o.exitEase,
   withPrevious: o.withPrevious,
   offset: o.offset,
 });

@@ -6,8 +6,8 @@
  *   0–1  intro exits; services enters; mat morphs tan → sage
  *   1    services chapter (0 dwell beats)
  *   1–2  services exits; mat morphs sage → slate
- *   3–40.85  timeline chapter dwell (37.85 beats)
- *   40.85–41.85  trailing rest
+ *   3–31.85  timeline chapter dwell (28.85 beats)
+ *   31.85–32.85  trailing rest
  *
  * chapter("timeline", { dwellBeats }) MUST be kept in sync with the
  * timeline chapter's OWN script total (chapters/home/timeline/script.ts's
@@ -26,10 +26,12 @@
  * + 3 dwell = 5.75 beats) to a non-dwelling enterTape (2 + 2 over = 4
  * beats), then to 37.85 when the entrance was retimed again (intro/line/
  * tape now hand off with near-zero gaps instead of independently-picked
- * beats, moving the tape's entrance 0.9 beats earlier) — same footgun,
- * different cause each time: any change to the entrance timing or to a
- * project's dwellBeats shifts this chapter's total and must be re-synced
- * here by hand.
+ * beats, moving the tape's entrance 0.9 beats earlier), then to 28.85 when
+ * timeline-content.ts's DEFAULT_DWELL_BEATS dropped from 3 to 2 (9 fewer
+ * total beats across the 9 project stops) — same footgun, different cause
+ * each time: any change to the entrance timing, to DEFAULT_DWELL_BEATS, or
+ * to an individual project's dwellBeats shifts this chapter's total and
+ * must be re-synced here by hand.
  */
 
 import {
@@ -52,8 +54,8 @@ export const PAGE = definePageScript({
       2.0,
       morph({ from: "--palette-yellow", to: "--palette-slate", over: 1 }),
     ),
-    at(3, chapter("timeline", { dwellBeats: 37.85 })),
+    at(3, chapter("timeline", { dwellBeats: 28.85 })),
 
-    at(40.85, hold(1)),
+    at(31.85, hold(1)),
   ],
 });

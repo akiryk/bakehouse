@@ -16,6 +16,7 @@
  * medium/small) — normalized to the lowercase ProductCardSize union here.
  */
 import type { ProductCardSize } from "@components/timeline/product-card/ProductCard.astro";
+import type { GsapEase } from "@motion/timeline-kit";
 
 export interface Project {
   year: number;
@@ -30,10 +31,35 @@ export interface Project {
   dx?: number;
   /** Vertical nudge off the shared card anchor, in vw. Default: 0. */
   dy?: number;
+
+  // ── Entrance (card arriving as the tape decelerates into this year) ──────
+  /** Beats the entrance takes — how quickly the card appears. Default: 0.6. */
+  enterOver?: number;
+  /** Easing for the entrance. Default: "power2.out". */
+  enterEase?: GsapEase;
+  /**
+   * How far below its resting position the card starts, in px — bigger
+   * means it visibly travels further/rises from lower on the page before
+   * settling. Default: 28.
+   */
+  enterFrom?: number;
+
+  // ── Exit (card leaving as the tape resumes toward the next stop) ────────
+  /**
+   * Beats the exit takes. Default: whatever this stop's approach into it
+   * was (timeline-sequence.ts's APPROACH_BEATS) — that default is what
+   * keeps the card's exit moving at the same rate the tape resumes at
+   * (see timeline-kit.ts's compile() comment on the release tween).
+   * Overriding this deliberately breaks that sync; only do it if you want
+   * the card to noticeably lag or lead the numbers on the way out.
+   */
+  exitOver?: number;
+  /** Easing for the exit. Default: "power1.out" (matches the tape's own approach ease). */
+  exitEase?: GsapEase;
 }
 
 /** Smart default for a project's dwell — override per project via dwellBeats. */
-export const DEFAULT_DWELL_BEATS = 3;
+export const DEFAULT_DWELL_BEATS = 2;
 
 export const PROJECTS: Project[] = [
   {
@@ -116,8 +142,8 @@ export const PROJECTS: Project[] = [
  * note), not something the motion layer should try to reconcile.
  */
 export const NOTES: Record<number, string> = {
-  1995: "Started building first-generation websites for non-profits around the SF Bay Area",
-  1998: "Enrolled in interaction design program at California College of the Arts",
-  2003: "Lead design at a small product studio",
-  2016: "Bakehouse Studio opens in Durango",
+  // 1995: "Started building first-generation websites for non-profits around the SF Bay Area",
+  // 1998: "Enrolled in interaction design program at California College of the Arts",
+  // 2003: "Lead design at a small product studio",
+  // 2016: "Bakehouse Studio opens in Durango",
 };
