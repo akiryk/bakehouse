@@ -202,11 +202,26 @@ export function initPageEngine(
       // One ScrollTrigger scrubs the entire master over the full scroll range.
       // start/end are absolute px positions — same arrow-function pattern as the
       // old engine (GSAP drops "vh" unit strings; functions are resize-safe).
+      //
+      // scrub: true, not a numeric smoothing value — every scrubbed timeline
+      // on the page (chapter dwells, fly-aways, the mat color morph, the
+      // timeline chapter's tape) should track the actual scroll position
+      // exactly, with the *authored* ease curves (e.g. enterTape's
+      // ease:"none", a stop's power1.out approach) doing 100% of the
+      // shaping. This was scrub: 1.5 (up to 1.5s of GSAP's own catch-up
+      // lag layered on top of those curves) — confirmed via a single,
+      // discrete scroll input that left the timeline's tape still visibly
+      // moving/decelerating on its own schedule for over a second after
+      // scrolling had completely stopped. That extra, decoupled easing
+      // pass is what read as "slows down, speeds up, jumps" scrolling
+      // through the timeline chapter: two independent easing systems
+      // (scrub lag + authored ease) compounding unpredictably instead of
+      // one clean, scroll-linked curve.
       ScrollTrigger.create({
         trigger: spacer,
         start: () => 0,
         end: () => vhToPx(totalVH),
-        scrub: 1.5,
+        scrub: true,
         animation: master,
       });
 
