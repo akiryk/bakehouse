@@ -13,6 +13,15 @@
 //   .chapter-shadow-wrap     — blur wrapper (z-index:0, CSS: calc insets)
 //   .chapter-shadow-shape    — clipped trapezoid (CSS: clip-path polygon)
 //   .chapter-paper-content   — the crisp white card: relative z-1 bg-foreground
+//
+// pointer-events-auto on both root elements (chapter-paper / chapter-bare) is
+// required, not decorative: Base.astro sets pointer-events-none on the whole
+// .foreground-stage so its transparent margins don't block the nav, and
+// documents that "Chapter.astro restores pointer-events-auto on each paper"
+// — the bare variant was missing this, which silently made every paperless
+// chapter's content (text, images) unselectable and un-inspectable in
+// DevTools, since pointer events fell through to whatever fixed layer sat
+// beneath it (the midground mat) instead of ever reaching real content.
 
 interface Props {
   id: string;
@@ -52,7 +61,11 @@ const { id, paper = true } = Astro.props;
       </div>
     </article>
   ) : (
-    <article id="chapter-bare" class="chapter-bare relative" data-chapter={id}>
+    <article
+      id="chapter-bare"
+      class="chapter-bare relative pointer-events-auto"
+      data-chapter={id}
+    >
       <div id="chapter-bare-content" class="chapter-bare-content">
         {Astro.slots.has("header") && (
           <header class="chapter-header">

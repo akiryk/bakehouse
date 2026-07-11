@@ -11,6 +11,13 @@
 // NOTES (labels). Project overlays render from timeline-content.ts's
 // PROJECTS — one ProductCard per entry, sharing a single on-screen anchor
 // (see .tl-card-anchor below) nudged per-project via dx/dy.
+//
+// .tl-stage is pointer-events-auto, not -none — this is a paperless
+// (paper=false) chapter, so unlike the other chapters there's no
+// chapter-paper element to opt back in; without this, none of this
+// chapter's text or images could be selected/copied, and DevTools'
+// element picker would only ever hit the fixed midground mat sitting
+// beneath it. See Chapter.astro's header comment for the full mechanism.
 import Chapter from "../../../components/Chapter.astro";
 import ProductCard from "@components/timeline/product-card/ProductCard.astro";
 import { CONFIG } from "./script";
@@ -25,7 +32,7 @@ const years = Array.from(
 <Chapter id="timeline" paper={false}>
   <div
     slot="main"
-    class="tl-stage fixed inset-0 h-dvh font-sans text-foreground pointer-events-none"
+    class="tl-stage fixed inset-0 h-dvh font-sans text-foreground pointer-events-auto"
     data-el="stage"
   >
     <!-- Intro wrapper owns vertical centering so the script can animate the inner

@@ -519,10 +519,21 @@ export function compile(
 
   // Overlays: all start hidden. Per-reveal custom `from` states are applied
   // after resolveScript so the initial state matches the tween's from exactly.
+  //
+  // pointerEvents: "none" here matters beyond visuals: every overlay shares
+  // one on-screen anchor (only one is ever meant to be visible at a time),
+  // so without this, the 8 invisible-but-still-hit-testable siblings behind
+  // whichever one is actually showing would silently win DevTools' element
+  // picker and swallow text selection/clicks — opacity:0 alone doesn't
+  // remove an element from hit-testing. Each stopTimelineAt flips this back
+  // to "auto" for the duration its own overlay is actually shown (see the
+  // reveal/release blocks below) via explicit tl.set() calls rather than
+  // relying on GSAP's own timing for non-tweened properties in a .to()/
+  // .fromTo() vars object, which isn't something to depend on implicitly.
   const overlays = Array.from(
     container.querySelectorAll<HTMLElement>("[data-overlay]"),
   );
-  gsap.set(overlays, { opacity: 0, y: 28 });
+  gsap.set(overlays, { opacity: 0, y: 28, pointerEvents: "none" });
 
   const { placed } = resolveScript(script);
 
@@ -694,6 +705,13 @@ export function compile(
           const spec = normalizeReveal(r);
           const overlay = el(`[data-overlay='${spec.id}']`);
           if (!overlay) return;
+          const tShow = tArrive + 0.1 + i * 0.15;
+          // Discrete flip, not tweened — see the pointerEvents comment on
+          // the initial gsap.set() above. Placed at the same beat as this
+          // overlay's own reveal starts, not tArrive itself, so a
+          // still-hidden (opacity near 0) card doesn't briefly intercept
+          // hits meant for whatever it's about to replace.
+          tl.set(overlay, { pointerEvents: "auto" }, tShow);
           tl.fromTo(
             overlay,
             spec.from ?? { opacity: 0, y: 28 },
@@ -704,7 +722,7 @@ export function compile(
               duration: spec.over ?? revealOver,
               ease: spec.ease ?? "power2.out",
             },
-            tArrive + 0.1 + i * 0.15,
+            tShow,
           );
         });
 
@@ -745,6 +763,11 @@ export function compile(
               },
               tRelease,
             );
+            // Flips back off once the exit has visually finished (not at
+            // tRelease, when it starts) — the card stays hit-testable for
+            // the whole visible fade-out, only stepping aside once it's
+            // actually gone, matching the pointerEvents:"auto" set above.
+            tl.set(overlay, { pointerEvents: "none" }, tRelease + exitOver);
           });
         }
         if (tick)

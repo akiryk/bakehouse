@@ -191,12 +191,22 @@
    without needing per-project logic. If CONFIG.anchor ever changes, this
    50% needs to change with it (same class of manual-sync point as
    home.script.ts's chapter() dwellBeats — see that file's comment).
-   --tl-card-dy is the vertical counterpart to --tl-card-dx, same source. */
+   --tl-card-dy is the vertical counterpart to --tl-card-dx, same source.
+   pointer-events: none — all 9 wrappers sit at this exact same position
+   permanently (only their inner <figure> fades in/out), so without this
+   the wrapper itself would always be hit-testable regardless of which
+   card is actually showing, and whichever one is later in DOM order would
+   silently win every click/selection/DevTools pick. A pointer-events:none
+   parent doesn't block a child from opting back in — timeline-kit.ts's
+   compile() sets pointer-events:auto directly on whichever <figure> is
+   currently revealed (and back to none once it's fully gone), so this
+   wrapper is deliberately just a positioning shell. */
 .tl-card-anchor {
   position: absolute;
   left: calc(var(--tl-line-x) + 6% + var(--tl-card-dx, 0vw));
   top: calc(50% + var(--tl-card-dy, 0vw));
   transform: translateY(-50%);
+  pointer-events: none;
 }
 
 /* Base styles */
