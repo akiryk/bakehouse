@@ -31,5 +31,5 @@ export const pageTransition = {
    * ScrollShapes) can listen for to start their own entrance. 0 = fires
    * exactly as the paper finishes; a positive value fires that much
    * earlier ("just before" it's fully faded in, per how it read at 0). */
-  shapesEnterLeadMs: 0,
+  shapesEnterLeadMs: 400,
 };

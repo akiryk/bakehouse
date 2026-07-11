@@ -7,9 +7,14 @@
 //   [data-el="tape"]     the year strip — enterTape / travel / stopTimelineAt
 //   [data-overlay="id"]  independent content revealed at stops
 //
-// Years render from script.ts (NOTES/CONFIG) so there's one tweak file.
+// Years render from script.ts's CONFIG (geometry) plus timeline-content.ts's
+// NOTES (labels). Project overlays render from timeline-content.ts's
+// PROJECTS — one ProductCard per entry, sharing a single on-screen anchor
+// (see .tl-card-anchor below) nudged per-project via dx/dy.
 import Chapter from "../../../components/Chapter.astro";
-import { CONFIG, NOTES } from "./script";
+import ProductCard from "@components/timeline/product-card/ProductCard.astro";
+import { CONFIG } from "./script";
+import { NOTES, PROJECTS } from "./timeline-content";
 
 const years = Array.from(
   { length: CONFIG.lastYear - CONFIG.firstYear + 1 },
@@ -77,35 +82,32 @@ const years = Array.from(
       </div>
     </div>
 
-    <!-- Overlays — revealed by stopTimelineAt(); positioned independently so each
-         project can land in a different place and size. -->
+    <!-- Overlays — revealed by stopTimelineAt(); every card shares one
+         on-screen anchor (.tl-card-anchor below) since no two are ever
+         visible at the same time (see script.ts) — width (size prop) and
+         a small dx/dy nudge (--tl-card-dx/--tl-card-dy, read by that same
+         CSS rule) are what vary card to card. The anchor lives on this
+         wrapper div, not on ProductCard itself — see global.css's
+         .tl-card-anchor comment for why that split matters (GSAP animates
+         the card's own `y`; a static centering transform can't safely
+         share that element). -->
     <div class="absolute inset-0">
-      <!-- opacity-0: pre-hidden; stopTimelineAt reveal animates in. -->
-      <figure
-        class="tl-card tl-card--winesmarts absolute m-0 bg-white opacity-0"
-        data-overlay="winesmarts"
-      >
-        <div class="tl-thumb tl-thumb--warm w-full" aria-hidden="true"></div>
-        <figcaption>
-          <h3 class="font-serif font-normal text-ink">WineSmarts</h3>
-          <p class="font-serif m-0 text-caption">
-            Design and branding for a game about wine knowledge.
-          </p>
-        </figcaption>
-      </figure>
-
-      <figure
-        class="tl-card tl-card--2011 absolute m-0 bg-white opacity-0"
-        data-overlay="sample-2011"
-      >
-        <div class="tl-thumb tl-thumb--cool w-full" aria-hidden="true"></div>
-        <figcaption>
-          <h3 class="font-serif font-normal text-ink">Placeholder project</h3>
-          <p class="font-serif m-0 text-caption">
-            Lorem ipsum dolor sit amet, consectetur adipiscing.
-          </p>
-        </figcaption>
-      </figure>
+      {
+        PROJECTS.map((project) => (
+          <div
+            class="tl-card-anchor"
+            style={`--tl-card-dx: ${project.dx ?? 0}vw; --tl-card-dy: ${project.dy ?? 0}vw;`}
+          >
+            <ProductCard
+              image={project.image}
+              title={project.title}
+              description={project.description}
+              size={project.size}
+              dataOverlay={String(project.year)}
+            />
+          </div>
+        ))
+      }
     </div>
   </div>
 </Chapter>
@@ -188,53 +190,12 @@ const years = Array.from(
     font-size: clamp(1rem, 1.6vw, 1.35rem);
     max-width: 36em;
   }
-
-  /* Asymmetric padding — bottom 1.2rem vs 1rem top/sides is an intentional
-     visual weight decision below the thumbnail.
-     box-shadow is a specific designer value, not a standard Tailwind shadow token. */
-  .tl-card {
-    padding: 1rem 1rem 1.2rem;
-    box-shadow: var(--shadow-card);
-  }
-
-  /* Per-card positions: left uses calc() with --tl-line-x; width uses min()
-     for responsive clamping. These are intentional per-project layout
-     coordinates, not magic numbers. */
-  .tl-card--winesmarts {
-    left: calc(var(--tl-line-x) + 4%);
-    top: 14%;
-    width: min(46%, 620px);
-  }
-  .tl-card--2011 {
-    left: calc(var(--tl-line-x) + 14%);
-    top: 30%;
-    width: min(34%, 460px);
-  }
-
-  /* 3/2 aspect ratio — no Tailwind token (aspect-video = 16/9). */
-  .tl-thumb {
-    aspect-ratio: 3 / 2;
-  }
-
-  /* Placeholder gradient thumbnails — to be replaced with real project images.
-     Not tokenized because the gradients will be deleted. */
-  .tl-thumb--warm {
-    background:
-      radial-gradient(120% 90% at 75% 20%, #e7b98a 0%, transparent 45%),
-      linear-gradient(150deg, #c67a3e, #9c4a2a);
-  }
-  .tl-thumb--cool {
-    background:
-      radial-gradient(110% 85% at 30% 25%, #b9c8d2 0%, transparent 50%),
-      linear-gradient(160deg, #7c93a0, #4d616d);
-  }
-
-  /* clamp() for fluid type on card headings and captions. */
-  .tl-card h3 {
-    font-size: clamp(1.3rem, 2.2vw, 1.7rem);
-    margin: 0.9rem 0 0.2rem;
-  }
-  .tl-card figcaption p {
-    font-size: clamp(0.95rem, 1.5vw, 1.1rem);
-  }
+  /* .tl-card-anchor (shared position for every project card) lives in
+     global.css, not here — it's applied to a class on ProductCard.astro's
+     own rendered <figure>, a different component's scope, and an
+     Astro <style> block only auto-scopes to elements the OWNING component
+     itself renders. Defining it here compiled without error but never
+     actually matched anything on screen (confirmed: the card was falling
+     back to the browser default for an unpositioned absolute element).
+     See global.css's own comment for the fix and the reasoning. */
 </style>
