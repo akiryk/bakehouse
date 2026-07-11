@@ -122,7 +122,7 @@
      components/timeline/product-card/ProductCard.astro. */
   --timeline-card-width-small: 32vw;
   --timeline-card-width-medium: 44vw;
-  --timeline-card-width-large: 54vw;
+  --timeline-card-width-large: 58vw;
 
   /* ── Typography ──────────────────────────────────────────────────────────── */
   --font-serif:

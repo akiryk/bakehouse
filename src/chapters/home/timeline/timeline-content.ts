@@ -50,6 +50,7 @@ export const PROJECTS: Project[] = [
       "I was an art director for clients including Carnival, RadioShack, Oceanspray, Verizon, and others.",
     image: "/timeline/2005-arnold.jpg",
     size: "large",
+    dx: -2, // nudge left
   },
   {
     year: 2008,
@@ -57,6 +58,7 @@ export const PROJECTS: Project[] = [
     description: "I led a major redesign effort for the Carnival website.",
     image: "/timeline/2008-carnival.png",
     size: "small",
+    dx: 4,
   },
   {
     year: 2011,
@@ -114,8 +116,8 @@ export const PROJECTS: Project[] = [
  * note), not something the motion layer should try to reconcile.
  */
 export const NOTES: Record<number, string> = {
-  1995: "Build first-generation sites for non-profits around SF Bay Area",
-  1997: "Study interaction design at California College of the Arts",
+  1995: "Started building first-generation websites for non-profits around the SF Bay Area",
+  1998: "Enrolled in interaction design program at California College of the Arts",
   2003: "Lead design at a small product studio",
   2016: "Bakehouse Studio opens in Durango",
 };

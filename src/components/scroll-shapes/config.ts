@@ -94,11 +94,11 @@ export interface ScrollShapesConfig {
 
 export const defaultConfig: ScrollShapesConfig = {
   sizeGroups: [
-    { count: 20, width: { min: 1, max: 6 }, height: { min: 50, max: 130 } }, // vh
-    { count: 8, width: { min: 8, max: 14 }, height: { min: 50, max: 130 } }, // vh
-    { count: 10, width: { min: 100, max: 200 }, height: { min: 80, max: 130 } }, // vh
+    { count: 30, width: { min: 1, max: 6 }, height: { min: 50, max: 130 } }, // vh
+    { count: 10, width: { min: 8, max: 14 }, height: { min: 50, max: 130 } }, // vh
+    { count: 12, width: { min: 100, max: 200 }, height: { min: 80, max: 130 } }, // vh
   ],
-  xZone: { left: 0.65, right: 1.0 },
+  xZone: { left: 0.45, right: 1.0 }, // vw
   scrollZone: { start: -400, end: 100_000 },
   speed: { min: 0.3, max: 0.9 },
   opacity: { min: 0.1, max: 1 },
