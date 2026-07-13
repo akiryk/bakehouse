@@ -44,7 +44,7 @@ const years = Array.from(
            show("intro") in the script animates it in. -->
       <header class="tl-intro opacity-0" data-el="intro">
         <h2 class="font-light">A little history.</h2>
-        <p class="font-light m-0">
+        <p class="font-light m-0 text-tl-body">
           I'm Adam Kiryk, a designer and web developer based in
           Durango,&nbsp;Colorado.
         </p>
@@ -55,7 +55,7 @@ const years = Array.from(
     <div class="tl-viewport absolute inset-0 overflow-hidden">
       <!-- opacity-0: pre-hidden; show("line") reveals it. -->
       <div
-        class="tl-line absolute top-0 h-full w-px bg-white/45 opacity-0 left-(--tl-line-x)"
+        class="tl-line absolute top-0 h-full w-px bg-tl-year-active/45 opacity-0 left-(--tl-line-x)"
         data-el="line"
         aria-hidden="true"
       >
@@ -71,11 +71,11 @@ const years = Array.from(
               data-year={year}
               style={`top:${(year - CONFIG.firstYear) * CONFIG.pitch}vh`}
             >
-              <span class="tl-num font-light text-right box-border w-(--tl-line-x) text-(--color-tl-year)">
+              <span class="tl-num font-light text-right box-border w-(--tl-line-x) text-tl-year">
                 {year}
               </span>
               <span
-                class="tl-tick w-0.5 -ml-px scale-x-0 origin-left bg-(--color-tl-year-active)"
+                class="tl-tick w-0.5 -ml-px scale-x-0 origin-left bg-tl-year-active"
                 aria-hidden="true"
               />
             </div>
@@ -141,7 +141,6 @@ const years = Array.from(
   .tl-intro p {
     font-size: clamp(1.15rem, 2vw, 1.5rem);
     line-height: 1.45;
-    color: var(--color-tl-body);
   }
 
   /* CSS mask for tape edge dissolve — Tailwind has no mask-image utility. */
