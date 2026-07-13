@@ -112,9 +112,13 @@ for (const project of PROJECTS) {
             id: String(project.year),
             over: project.enterOver,
             ease: project.enterEase,
+            delay: project.enterDelay,
             from:
-              project.enterFrom !== undefined
-                ? { opacity: 0, y: project.enterFrom }
+              project.enterFrom !== undefined || project.enterFade === false
+                ? {
+                    opacity: project.enterFade === false ? 1 : 0,
+                    y: project.enterFrom ?? 28,
+                  }
                 : undefined,
           },
         ],

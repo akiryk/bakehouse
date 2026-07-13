@@ -37,11 +37,31 @@ export interface Project {
   /** Easing for the entrance. Default: "power2.out". */
   enterEase?: GsapEase;
   /**
-   * How far below its resting position the card starts, in px — bigger
-   * means it visibly travels further/rises from lower on the page before
-   * settling. Default: 28.
+   * How far below its resting position the card starts — bigger means it
+   * visibly travels further/rises from lower on the page before settling.
+   * A plain number is px (default: 28, a small nudge); a string can carry
+   * any CSS length, e.g. "90vh" for a viewport-relative distance that
+   * reliably starts below the fold regardless of screen height (the way
+   * the exit's own -70vh does).
    */
-  enterFrom?: number;
+  enterFrom?: number | string;
+  /**
+   * Whether the entrance fades in (opacity 0 -> 1) alongside the move.
+   * Default: true. Set false for a pure move-only entrance — the card
+   * stays fully opaque throughout and only its position animates (still
+   * combine with enterFrom for this to read as "rising into view" rather
+   * than just appearing already in place).
+   */
+  enterFade?: boolean;
+  /**
+   * Beats after the tape arrives before the entrance starts. Default: 0.1
+   * (a hair of separation from the tick/numeral highlight). Set to 0 for
+   * the card to start moving the instant the tape arrives — with a large
+   * enterFrom and a short enterOver, this is what closes the gap between
+   * "the year lands" and "the card visibly appears" as much as possible;
+   * enterOver alone has a floor once this delay dominates the remaining gap.
+   */
+  enterDelay?: number;
 
   // ── Exit (card leaving as the tape resumes toward the next stop) ────────
   /**
@@ -67,6 +87,11 @@ export const PROJECTS: Project[] = [
     description: "Design and branding for an educational game about wine.",
     image: "/timeline/2000-winesmarts.png",
     size: "medium",
+    enterFade: true,
+    enterFrom: "80vh",
+    enterOver: 0.75,
+    enterDelay: 0,
+    dwellBeats: 2,
   },
   {
     year: 2005,
@@ -76,6 +101,11 @@ export const PROJECTS: Project[] = [
     image: "/timeline/2005-arnold.jpg",
     size: "large",
     dx: -2, // nudge left
+    enterFade: true,
+    enterFrom: "80vh",
+    enterOver: 0.75,
+    enterDelay: 0,
+    dwellBeats: 2,
   },
   {
     year: 2008,
@@ -84,6 +114,11 @@ export const PROJECTS: Project[] = [
     image: "/timeline/2008-carnival.png",
     size: "small",
     dx: 4,
+    enterFade: true,
+    enterFrom: "80vh",
+    enterOver: 0.75,
+    enterDelay: 0,
+    dwellBeats: 2,
   },
   {
     year: 2011,
@@ -92,6 +127,11 @@ export const PROJECTS: Project[] = [
       "I managed user experience design for NPR member stations starting in 2010.",
     image: "/timeline/2011-npr.png",
     size: "medium",
+    enterFade: true,
+    enterFrom: "80vh",
+    enterOver: 0.75,
+    enterDelay: 0,
+    dwellBeats: 2,
   },
   {
     year: 2014,
@@ -99,6 +139,11 @@ export const PROJECTS: Project[] = [
     description: "News platform used by over 112 member stations.",
     image: "/timeline/2014-npr-corepub.jpg",
     size: "large",
+    enterFade: true,
+    enterFrom: "80vh",
+    enterOver: 0.75,
+    enterDelay: 0,
+    dwellBeats: 2,
   },
   {
     year: 2017,
@@ -106,6 +151,11 @@ export const PROJECTS: Project[] = [
     description: 'Frontend engineer on favorites lists ("Boards").',
     image: "/timeline/2017-boards.png",
     size: "medium",
+    enterFade: true,
+    enterFrom: "80vh",
+    enterOver: 0.75,
+    enterDelay: 0,
+    dwellBeats: 2,
   },
   {
     year: 2021,
@@ -113,6 +163,11 @@ export const PROJECTS: Project[] = [
     description: "Built a new wedding registry site for Wayfair.",
     image: "/timeline/2021-registry.png",
     size: "small",
+    enterFade: true,
+    enterFrom: "80vh",
+    enterOver: 0.75,
+    enterDelay: 0,
+    dwellBeats: 2,
   },
   {
     year: 2025,
@@ -121,6 +176,11 @@ export const PROJECTS: Project[] = [
       "Demo site displaying my interest in motion and custom design.",
     image: "/timeline/2025-gambel.png",
     size: "medium",
+    enterFade: true,
+    enterFrom: "80vh",
+    enterOver: 0.75,
+    enterDelay: 0,
+    dwellBeats: 2,
   },
   {
     year: 2026,
@@ -128,5 +188,10 @@ export const PROJECTS: Project[] = [
     description: "Personal budget app.",
     image: "/timeline/2026-budget-tool.png",
     size: "medium",
+    enterFade: true,
+    enterFrom: "80vh",
+    enterOver: 0.75,
+    enterDelay: 0,
+    dwellBeats: 2,
   },
 ];

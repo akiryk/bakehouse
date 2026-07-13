@@ -291,6 +291,16 @@ export interface RevealSpec {
   over?: number;
   /** Easing. Default: "power2.out" */
   ease?: GsapEase;
+  /**
+   * Beats after the tape arrives before this reveal starts. Default: 0.1
+   * (a hair of separation so the reveal doesn't start in the exact same
+   * instant as the tick/numeral highlight) plus 0.15 per earlier reveal
+   * in the same stop, for staggering multiple reveals — that stagger only
+   * applies when there's more than one reveal; with a single reveal (the
+   * common case) it's just the flat 0.1. Set to 0 to start the instant
+   * the tape arrives, with no separation at all.
+   */
+  delay?: number;
 }
 
 function durationOf(m: Moment, tapeYear: number | null): number {
@@ -719,7 +729,7 @@ export function compile(
           const spec = normalizeReveal(r);
           const overlay = el(`[data-overlay='${spec.id}']`);
           if (!overlay) return;
-          const tShow = tArrive + 0.1 + i * 0.15;
+          const tShow = tArrive + (spec.delay ?? 0.1 + i * 0.15);
           // Discrete flip, not tweened — see the pointerEvents comment on
           // the initial gsap.set() above. Placed at the same beat as this
           // overlay's own reveal starts, not tArrive itself, so a
