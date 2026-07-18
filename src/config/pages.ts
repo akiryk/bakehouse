@@ -22,4 +22,8 @@ export const pages: Record<string, PageConfig> = {
     useScrollEngine: true,
     chapters: [{ id: "about", motionPath: "home/about/motion" }],
   },
+  work: {
+    useScrollEngine: true,
+    chapters: [{ id: "browse", motionPath: "work/browse/motion" }],
+  },
 };

@@ -1,35 +1,38 @@
 ---
 import Chapter from "@components/Chapter.astro";
+import Paper from "@components/Paper.astro";
 import StageLeft from "@layouts/StageLeft.astro";
 ---
 
 <StageLeft>
   <Chapter id="services">
-    <div slot="main" class="max-w-3xl pt-10">
-      <h2 class="text-2xl mb-10 pb-2 italic border-b border-sage">
-        What I can do for you...
-      </h2>
-      <section class="service-item text-2xl mb-8">
-        <h3 class="font-bold mb-2">Create a new website or app</h3>
-        <p class="mb-4">
-          Whether you already have an idea or you’re starting from scratch, we
-          can create a compelling experience.
-        </p>
-      </section>
+    <Paper>
+      <div slot="main" class="max-w-3xl pt-10">
+        <h2 class="text-2xl mb-10 pb-2 italic border-b border-sage">
+          What I can do for you...
+        </h2>
+        <section class="service-item text-2xl mb-8">
+          <h3 class="font-bold mb-2">Create a new website or app</h3>
+          <p class="mb-4">
+            Whether you already have an idea or you’re starting from scratch, we
+            can create a compelling experience.
+          </p>
+        </section>
 
-      <section class="service-item text-2xl mb-8">
-        <h3 class="font-bold mb-2">Update an existing website or app</h3>
-        <p class="mb-4">
-          Add features, refresh the design, improve critical functionality.
-        </p>
-      </section>
+        <section class="service-item text-2xl mb-8">
+          <h3 class="font-bold mb-2">Update an existing website or app</h3>
+          <p class="mb-4">
+            Add features, refresh the design, improve critical functionality.
+          </p>
+        </section>
 
-      <section class="service-item text-2xl mb-4">
-        <h3 class="font-bold mb-2">Handle regular maintenance</h3>
-        <p class="mb-4">
-          Update a description, pricing model, calendar, or something else.
-        </p>
-      </section>
-    </div>
+        <section class="service-item text-2xl mb-4">
+          <h3 class="font-bold mb-2">Handle regular maintenance</h3>
+          <p class="mb-4">
+            Update a description, pricing model, calendar, or something else.
+          </p>
+        </section>
+      </div>
+    </Paper>
   </Chapter>
 </StageLeft>

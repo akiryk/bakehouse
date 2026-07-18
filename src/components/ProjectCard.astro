@@ -1,0 +1,63 @@
+---
+// ProjectCard — one portfolio project, per the Epic 19 single-card mock.
+// Geometry (width/height/image-height) comes from ancestor-injected
+// --browse-* vars (config/browse.ts's browseCssVars() — the grid sets them
+// in Step 6, a throwaway harness sets them for standalone verification);
+// look (color/size/divider/button) comes from the Step 19.3 tokens in
+// global.css. No literal values live here.
+import type { Project } from "../data/projects";
+
+interface Props {
+  project: Project;
+}
+
+const { project } = Astro.props;
+const { slug, year, name, role, title, description, image } = project;
+---
+
+<article
+  class="font-sans bg-foreground overflow-hidden flex flex-col w-(--browse-card-width) shadow-(--card-shadow)"
+>
+  <div class="w-full h-(--browse-image-height) overflow-hidden shrink-0">
+    {
+      image ? (
+        <img src={image} alt={name} class="w-full h-full object-cover" />
+      ) : (
+        <div class="w-full h-full bg-neutral-400" aria-hidden="true" />
+      )
+    }
+  </div>
+
+  <div class="flex flex-col p-4">
+    <p class="text-card-eyebrow text-card-meta font-normal uppercase mb-0">
+      {year}
+    </p>
+
+    <div class="flex items-center mb-2">
+      <span class="text-card-name text-card-heading font-medium">{name}</span>
+      <span
+        class="w-(--card-divider-width) h-(--card-divider-height) bg-(--card-divider-color) mx-(--card-divider-gap) shrink-0"
+        aria-hidden="true"></span>
+      <span class="text-card-name text-card-meta font-medium">{role}</span>
+    </div>
+
+    <p class="text-card-eyebrow text-card-meta font-normal uppercase">
+      {title}
+    </p>
+
+    <p
+      class="text-card-body text-card-description font-normal line-clamp-3 mb-6"
+    >
+      {description}
+    </p>
+
+    <a
+      href={`/work/${slug}`}
+      aria-label={`Learn more about ${name}`}
+      class="self-start inline-block bg-card-button text-card-on-button text-card-body font-normal uppercase px-(--card-button-pad-x) py-(--card-button-pad-y)
+      hover:bg-card-button-hover hover:text-white"
+    >
+      Learn More
+    </a>
+  </div>
+</article>

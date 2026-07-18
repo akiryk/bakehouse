@@ -1,0 +1,103 @@
+---
+// Browse chapter — the /work grid. Bare Chapter, no Paper: cards sit
+// directly on the mat, not inside a paper card (see Chapter.astro).
+//
+// DOM: per-row groups, not one flat grid (Story 19.7 restructure of 19.6).
+// Each .browse-row holds one page's worth of cards (browse.columns across).
+// This serves two presentations from one markup, switched entirely by
+// which Tailwind utility classes motion.ts adds/removes at runtime — no
+// custom CSS class names carry any layout meaning (see CLAUDE.md's
+// Tailwind-first rule; the only custom CSS left is .browse-row-inner's
+// grid-template-columns and the shared .browse-max-h, both genuinely
+// inexpressible in Tailwind — reason 1):
+//   - Default / reduced-motion: rows sit in normal flow (space-y-* handles
+//     the row gutter), the column scrolls internally (overflow-y-auto +
+//     .browse-max-h) — every project reachable by ordinary scroll, no JS.
+//   - Full motion (motion.ts): swaps the column to relative/overflow-visible/
+//     w-screen/h-dvh and each row to absolute/inset-x-0/top-0/mt-0 — motion.ts
+//     then drives each row's own translateY independently (REST/PEEK/
+//     OFF-TOP/OFF-BOTTOM per the epic's sliding-window model).
+// The outer .browse-row carries that paging translateY; the inner
+// .browse-row-inner carries the separate first-load reveal (opacity + rise)
+// on rows 0/1 only — kept on a different element so GSAP's own transform
+// never fights another transform on the same element (the .tl-card-anchor
+// precedent in global.css documents exactly the failure mode this avoids).
+// Rows 0/1 get a static opacity-0 (matching the timeline chapter's own
+// .tl-intro) so there's no flash of fully-visible content before motion.ts's
+// gsap.set() hides it pre-reveal — motion.ts explicitly re-hides then
+// reveals these under full motion, and explicitly un-hides them under
+// reduced motion (which never runs the reveal at all).
+//
+// clipToBand (browse.ts) is a build-time authoring choice, not a runtime
+// toggle: when true, the column is wrapped in a band using the same
+// overflow-hidden + .browse-max-h treatment so an exiting row clips at the
+// mat's safe area instead of visibly crossing the nav mid-flight (Step 7's
+// documented fallback). Default is false — rows fly fully off-top, under
+// the nav.
+import Chapter from "../../../components/Chapter.astro";
+import ProjectCard from "../../../components/ProjectCard.astro";
+import StageCenter from "../../../layouts/StageCenter.astro";
+import { projects } from "../../../data/projects";
+import { browse, browseCssVars } from "../../../config/browse";
+
+const rows = Array.from(
+  { length: Math.ceil(projects.length / browse.columns) },
+  (_, r) => projects.slice(r * browse.columns, (r + 1) * browse.columns),
+);
+---
+
+<StageCenter>
+  <Chapter id="browse">
+    <div
+      class:list={[
+        "relative",
+        browse.clipToBand && "overflow-hidden browse-max-h",
+      ]}
+    >
+      <div
+        class="browse-column overflow-y-auto browse-max-h space-y-(--browse-row-gutter)"
+        style={browseCssVars()}
+        data-el="browse-column"
+      >
+        {
+          rows.map((rowProjects, r) => (
+            <div class="browse-row">
+              <div
+                class:list={[
+                  "browse-row-inner grid justify-center gap-x-(--browse-col-gutter)",
+                  r < 2 && "opacity-0",
+                ]}
+              >
+                {rowProjects.map((project) => (
+                  <ProjectCard project={project} />
+                ))}
+              </div>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </Chapter>
+</StageCenter>
+
+<style>
+  /* grid-template-columns: repeat(var(), var()) — a dynamic column COUNT
+     and dynamic track SIZE both driven by CSS custom properties — has no
+     Tailwind equivalent. CLAUDE.md reason 1. */
+  .browse-row-inner {
+    grid-template-columns: repeat(
+      var(--browse-columns),
+      var(--browse-card-width)
+    );
+  }
+
+  /* calc() with two CSS vars has no Tailwind equivalent — CLAUDE.md reason 1.
+     Shared by the static column baseline and the optional clipToBand band
+     above (same formula, same reason); motion.ts removes it from the column
+     when switching into the full-motion paged layout. */
+  .browse-max-h {
+    max-height: calc(
+      100vh - var(--mat-safe-inset-top) - var(--mat-safe-inset-bottom)
+    );
+  }
+</style>

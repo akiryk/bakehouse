@@ -43,6 +43,13 @@ intent. For anything responsive, check both a **wide** and a **tall/narrow** win
 calling it done: behavior that looks right at one window shape routinely breaks at another,
 and "I set the attribute" is not evidence the attribute took effect.
 
+**A brand-new Tailwind class silently rendering with zero effect is a stale dev-server
+cache, not broken code or a wrong class name — check the cache before you start doubting
+the class.** Vite's on-disk dependency cache can go stale mid-session and keep serving CSS
+that's missing utility classes newly introduced by a class/token added since the server
+last started, even across a plain restart. See `docs/playwright-verification.md` →
+"Stale dev-server cache" for the diagnostic and the fix (`npm run dev:force`).
+
 ---
 
 ## Stack & decisions

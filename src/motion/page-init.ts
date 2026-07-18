@@ -1,7 +1,7 @@
 /**
- * Per-page bootstrapping, dispatched by page-transitions.ts on every
- * astro:page-load (cold load or SPA navigation — see that file's header
- * comment for why that event is the single right hook for both).
+ * Per-page bootstrapping, dispatched by Base.astro's own <script> on every
+ * astro:page-load (cold load or SPA navigation — see page-transitions.ts's
+ * header comment for why that event is the single right hook for both).
  *
  * This exists because data-astro-rerun — the attribute that would otherwise
  * make a page's own <script> tag re-execute on a repeat visit — cannot be
@@ -76,5 +76,15 @@ export async function initAboutPage(): Promise<void> {
   ]);
 
   const model = initPageEngine(pages.about, PAGE, [aboutMotion]);
+  await exposeBeatModelForDevtools(model);
+}
+
+export async function initWorkPage(): Promise<void> {
+  const [{ PAGE }, browseMotion] = await Promise.all([
+    import("./work.script"),
+    import("../chapters/work/browse/motion").then((m) => m.default),
+  ]);
+
+  const model = initPageEngine(pages.work, PAGE, [browseMotion]);
   await exposeBeatModelForDevtools(model);
 }

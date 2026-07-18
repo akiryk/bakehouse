@@ -76,6 +76,45 @@ bug — an entry-range config that silently had no effect — that only showed u
 the page and measuring the rendered geometry; a type check has no opinion on document
 script order.
 
+## Stale dev-server cache: rule this out before doubting your code
+
+**Symptom:** a class you just added — a new `@theme` token utility, or a
+`utility-(--custom-property)` reference — renders with visibly zero effect. The element's
+`getComputedStyle` shows the browser default, not your token's value, even though the
+class name, the token name, and the component code are all correct. A _plain_ `astro dev`
+restart does not fix it.
+
+**Cause:** confirmed directly (Story 19.5's `ProjectCard.astro`) — Vite's on-disk
+dependency-optimization cache (`node_modules/.vite`) can go stale mid-session and keep
+serving a Tailwind build that's missing utility classes for candidates introduced by
+files added or changed since the dev server last cold-started. A plain restart reuses
+that on-disk cache, so it reproduces the exact same gap; only a forced re-scan clears it.
+Concretely, some classes on the same element/line worked while others didn't (e.g.
+`text-card-heading` compiled but `text-card-meta`, `bg-card-button`, and every
+`-(--browse-*)` reference on the very same component did not) — a partial, inconsistent
+miss, not "nothing works," which is what makes it easy to mistake for a code bug.
+
+**Diagnostic — confirm it's the cache, not your code:** curl the dev server's own served
+stylesheet directly and grep for the selector you expect, bypassing the DOM/computed-style
+layer entirely:
+
+```bash
+curl -s "http://localhost:4321/src/styles/global.css" -o /tmp/served-global.css
+grep -o "your-expected-class-fragment" /tmp/served-global.css
+```
+
+If the fragment is entirely absent from the served CSS, it's the cache — not a typo, not a
+collision, not a wrong token name.
+
+**Fix:** `npm run dev:force` (runs `astro dev --force`, which busts the dependency cache
+and forces a full re-scan). Kill any plain `astro dev` first so they don't fight over the
+port.
+
+**When to reach for this:** any time in a session you add a brand-new file, a brand-new
+`@theme` token, or a class that has never appeared literally in any file before, and its
+effect doesn't show up. Check this before spending time re-deriving whether the token, the
+collision rules, or the component markup are wrong — they're very possibly all fine.
+
 ## Cleanup
 
 Temp verification scripts and the `/tmp/node_modules` symlink are scratch — safe to

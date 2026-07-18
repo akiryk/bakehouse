@@ -127,10 +127,10 @@ function fadeInPaper(durationMs: number, delayMs = 0): void {
  * re-renders on a later swap), so this is the only thing that keeps it
  * correct across an SPA navigation. Runs immediately on astro:page-load,
  * not gated behind the mat/paper sequence — there's no reason to delay a
- * plain class toggle. Services/Work are still href="#" placeholders, not
- * real routes — a.pathname for those would resolve to the *current* page
- * (a bare "#" href resolves against the current URL), so they're excluded
- * rather than being incorrectly matched as "active". */
+ * plain class toggle. Services is still an href="#" placeholder, not a real
+ * route — a.pathname for that would resolve to the *current* page (a bare
+ * "#" href resolves against the current URL), so it's excluded rather than
+ * being incorrectly matched as "active". */
 function updateNavActiveState(): void {
   document.querySelectorAll<HTMLAnchorElement>("nav a[href]").forEach((a) => {
     if (a.getAttribute("href") === "#") return;

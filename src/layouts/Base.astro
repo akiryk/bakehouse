@@ -9,7 +9,7 @@ interface Props {
    * dispatch (rendered as document.body.dataset.page) — see that file's
    * header comment for why dispatch-by-identity replaces each page having
    * its own re-runnable <script>. */
-  page: "home" | "about";
+  page: "home" | "about" | "work";
 }
 
 const { title = "Bakehouse", page } = Astro.props;
@@ -40,6 +40,23 @@ const staticClipPath = [
     <meta name="generator" content={Astro.generator} />
     <title>{title}</title>
     <link rel="stylesheet" href="https://use.typekit.net/edz5xyo.css" />
+    <!-- Jost (variable, --font-sans): normal weights only, no ital axis —
+         requesting italics merged with a normal weight range hits a Google
+         Fonts bug (google/fonts #2445) where the italics silently fail to
+         render. We don't use italics on font-sans; if ever needed, request
+         them as a separate family line, not merged into this one.
+         Range is 200..600 (ExtraLight–SemiBold): a weight requested outside
+         a variable face's declared range clamps to the nearest in-range
+         value rather than erroring — confirmed the 400..600 range from
+         Story 19.2 was silently rendering font-light (300, the timeline
+         years) as Regular. Widened to include the lighter end actually
+         used, not just Regular/Medium. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Jost:wght@200..600&display=swap"
+      rel="stylesheet"
+    />
     <ClientRouter />
   </head>
   <body data-page={page}>
@@ -184,7 +201,11 @@ const staticClipPath = [
 <script>
   import { initOctagonWobble, octagonController } from "../motion/octagon";
   import { initPageTransitions } from "../motion/page-transitions";
-  import { initHomePage, initAboutPage } from "../motion/page-init";
+  import {
+    initHomePage,
+    initAboutPage,
+    initWorkPage,
+  } from "../motion/page-init";
   initOctagonWobble();
   initPageTransitions();
 
@@ -195,6 +216,7 @@ const staticClipPath = [
     const page = document.body.dataset.page;
     if (page === "home") initHomePage();
     else if (page === "about") initAboutPage();
+    else if (page === "work") initWorkPage();
   });
 
   if (import.meta.env.DEV) {

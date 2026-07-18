@@ -1,133 +1,36 @@
 ---
-// Chapter.astro — the foreground "paper" wrapper.
-// header and footer slots are optional; main is always rendered.
-// The data-chapter attribute is used by the scroll engine.
+// Chapter.astro — the neutral [data-chapter] transform target.
+// Just the marker the scroll engine sequences; it knows nothing about what a
+// "paper" is. Compose with Paper.astro when a chapter should render as a card.
 //
 // Props:
-//   id     — required; matched by the scroll engine via [data-chapter]
-//   paper  — default true. When false, renders no white card or shadow:
-//             content sits directly on the midground. Use for full-bleed chapters.
+//   id — required; matched by the scroll engine via [data-chapter]
 //
-// Layering model (paper=true, no negative z-index, no overflow:hidden):
-//   article.chapter-paper    — shadow stage: relative isolate w-(--chapter-paper-width)
-//   .chapter-shadow-wrap     — blur wrapper (z-index:0, CSS: calc insets)
-//   .chapter-shadow-shape    — clipped trapezoid (CSS: clip-path polygon)
-//   .chapter-paper-content   — the crisp white card: relative z-1 bg-foreground
-//
-// pointer-events-auto on both root elements (chapter-paper / chapter-bare) is
-// required, not decorative: Base.astro sets pointer-events-none on the whole
-// .foreground-stage so its transparent margins don't block the nav, and
-// documents that "Chapter.astro restores pointer-events-auto on each paper"
-// — the bare variant was missing this, which silently made every paperless
-// chapter's content (text, images) unselectable and un-inspectable in
-// DevTools, since pointer events fell through to whatever fixed layer sat
-// beneath it (the midground mat) instead of ever reaching real content.
+// pointer-events-auto is required, not decorative: Base.astro sets
+// pointer-events-none on the whole .foreground-stage so its transparent
+// margins don't block the nav, and this is what restores it per chapter —
+// without it, a chapter's content (text, images) becomes unselectable and
+// un-inspectable in DevTools, since pointer events fall through to whatever
+// fixed layer sits beneath it (the midground mat) instead of ever reaching
+// real content.
 
 interface Props {
   id: string;
-  paper?: boolean;
 }
 
-const { id, paper = true } = Astro.props;
+const { id } = Astro.props;
 ---
 
-{
-  paper ? (
-    <article
-      id="chapter-paper"
-      class="chapter-paper relative isolate w-(--chapter-paper-width) pointer-events-auto"
-      data-chapter={id}
-    >
-      <div class="chapter-shadow-wrap">
-        <div class="chapter-shadow-shape" />
-      </div>
-      <div
-        id="chapter-paper-content"
-        class="chapter-paper-content relative z-1 bg-foreground pr-16 pb-12 pl-12 min-h-(--min-h-chapter)"
-      >
-        {Astro.slots.has("header") && (
-          <header class="chapter-header">
-            <slot name="header" />
-          </header>
-        )}
-        <main class="chapter-main">
-          <slot name="main" />
-        </main>
-        {Astro.slots.has("footer") && (
-          <footer class="chapter-footer">
-            <slot name="footer" />
-          </footer>
-        )}
-      </div>
-    </article>
-  ) : (
-    <article
-      id="chapter-bare"
-      class="chapter-bare relative pointer-events-auto"
-      data-chapter={id}
-    >
-      <div id="chapter-bare-content" class="chapter-bare-content">
-        {Astro.slots.has("header") && (
-          <header class="chapter-header">
-            <slot name="header" />
-          </header>
-        )}
-        <main class="chapter-main">
-          <slot name="main" />
-        </main>
-        {Astro.slots.has("footer") && (
-          <footer class="chapter-footer">
-            <slot name="footer" />
-          </footer>
-        )}
-      </div>
-    </article>
-  )
-}
+<article class="chapter relative pointer-events-auto" data-chapter={id}>
+  <slot />
+</article>
 
 <style>
-  /* ── Paper variant ────────────────────────────────────────────────────────── */
-
-  /* Tailwind handles: relative, isolate, w-(--chapter-paper-width).
-     CSS reason 1: will-change is GSAP-coordinated initial state — no Tailwind equivalent. */
-  .chapter-paper {
-    will-change: transform;
-  }
-
-  /* CSS reason 1: calc(-1 * var(--...)) on right/bottom has no Tailwind equivalent.
-     Two-element shadow system (blur on wrap, clip on shape) so the blur bleeds
-     past the polygon edges instead of being clipped to them. */
-  .chapter-shadow-wrap {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: calc(-1 * var(--paper-shadow-poke-x));
-    bottom: calc(-1 * var(--paper-shadow-poke-y));
-    filter: blur(var(--paper-shadow-blur));
-    z-index: 0;
-  }
-
-  /* CSS reason 1: clip-path: polygon(...) has no Tailwind equivalent.
-     CSS reason 2: kept with shadow-wrap for shadow system cohesion. */
-  .chapter-shadow-shape {
-    width: 100%;
-    height: 100%;
-    clip-path: polygon(
-      var(--paper-shadow-inset) var(--paper-shadow-inset),
-      calc(100% - var(--paper-shadow-poke-x)) var(--paper-shadow-inset),
-      100% 100%,
-      var(--paper-shadow-inset)
-        calc(100% - var(--paper-shadow-poke-y) - var(--paper-shadow-inset))
-    );
-    background: var(--paper-shadow-color);
-    opacity: var(--paper-shadow-opacity);
-  }
-
-  /* ── Paperless variant ────────────────────────────────────────────────────── */
-
   /* Tailwind handles: relative.
-     CSS reason 1: will-change is GSAP-coordinated initial state — no Tailwind equivalent. */
-  .chapter-bare {
+     CSS reason 1: will-change is GSAP-coordinated initial state — no Tailwind
+     equivalent. This is the element the engine actually transforms, so the
+     fly-away must be promoted here, not on Paper. */
+  .chapter {
     will-change: transform;
   }
 </style>

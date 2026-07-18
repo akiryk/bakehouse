@@ -5,55 +5,58 @@
 // motion.ts scrubs its own y continuously as the user scrolls to reveal
 // content taller than the viewport. See docs/epics/epic-17-*.
 import Chapter from "@components/Chapter.astro";
+import Paper from "@components/Paper.astro";
 ---
 
 <div class="absolute left-(--stage-left-inset) top-32">
   <Chapter id="about">
-    <div slot="main" class="max-w-3xl pt-16">
-      <h2 class="text-2xl mb-10 pb-2 italic border-b border-sage">About</h2>
-      <p class="text-2xl mb-4">
-        I'm a designer and developer working out of a small studio in the
-        Durango area, building websites and digital tools for a select group of
-        clients who care about the details as much as I do.
-      </p>
-      <p class="text-2xl mb-4">
-        My background is split evenly between design and engineering, which
-        means I spend as much time thinking about how something should feel as I
-        do making sure it actually works. A site that looks considered but loads
-        slowly, or one that's fast but forgettable, both miss the point.
-      </p>
-      <p class="text-2xl mb-4">
-        Before Bakehouse, I spent a decade building interaction design and
-        front-end systems for small product studios and non-profits — mostly the
-        kind of work where you wear every hat at once, which turned out to be
-        good training for running a studio of one.
-      </p>
-      <p class="text-2xl mb-4">
-        These days the projects are smaller and more deliberate. I like working
-        directly with the people who'll use what I build, rather than through
-        layers of process, and I like projects with a clear point of view — a
-        restaurant, a maker, a small practice — more than anything that needs to
-        be all things to all people.
-      </p>
-      <p class="text-2xl mb-4">
-        Typography and pacing matter to me as much as color and layout. I'd
-        rather a page say less, and say it well, than fill every inch of the
-        screen. That restraint is really the whole design philosophy behind this
-        site, and behind the ones I build for other people.
-      </p>
-      <p class="text-2xl mb-4">
-        When I'm not at the keyboard I'm usually outside — this part of Colorado
-        makes that easy — and most of what ends up on a client's site is
-        inspired by paying attention to how things are actually made: paper,
-        wood, bread, the occasional bakehouse.
-      </p>
-      <p class="text-2xl mb-4">
-        If any of this sounds like your kind of project, <a
-          href="#"
-          class="link">reach out</a
-        > — I'd like to hear about it.
-      </p>
-    </div>
+    <Paper>
+      <div slot="main" class="max-w-3xl pt-16">
+        <h2 class="text-2xl mb-10 pb-2 italic border-b border-sage">About</h2>
+        <p class="text-2xl mb-4">
+          I'm a designer and developer working out of a small studio in the
+          Durango area, building websites and digital tools for a select group
+          of clients who care about the details as much as I do.
+        </p>
+        <p class="text-2xl mb-4">
+          My background is split evenly between design and engineering, which
+          means I spend as much time thinking about how something should feel as
+          I do making sure it actually works. A site that looks considered but
+          loads slowly, or one that's fast but forgettable, both miss the point.
+        </p>
+        <p class="text-2xl mb-4">
+          Before Bakehouse, I spent a decade building interaction design and
+          front-end systems for small product studios and non-profits — mostly
+          the kind of work where you wear every hat at once, which turned out to
+          be good training for running a studio of one.
+        </p>
+        <p class="text-2xl mb-4">
+          These days the projects are smaller and more deliberate. I like
+          working directly with the people who'll use what I build, rather than
+          through layers of process, and I like projects with a clear point of
+          view — a restaurant, a maker, a small practice — more than anything
+          that needs to be all things to all people.
+        </p>
+        <p class="text-2xl mb-4">
+          Typography and pacing matter to me as much as color and layout. I'd
+          rather a page say less, and say it well, than fill every inch of the
+          screen. That restraint is really the whole design philosophy behind
+          this site, and behind the ones I build for other people.
+        </p>
+        <p class="text-2xl mb-4">
+          When I'm not at the keyboard I'm usually outside — this part of
+          Colorado makes that easy — and most of what ends up on a client's site
+          is inspired by paying attention to how things are actually made:
+          paper, wood, bread, the occasional bakehouse.
+        </p>
+        <p class="text-2xl mb-4">
+          If any of this sounds like your kind of project, <a
+            href="#"
+            class="link">reach out</a
+          > — I'd like to hear about it.
+        </p>
+      </div>
+    </Paper>
   </Chapter>
 </div>
 

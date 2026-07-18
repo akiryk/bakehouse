@@ -15,12 +15,15 @@
   --palette-sage: #d9dccc; /* muted sage */
   --palette-yellow: #e6d063;
   --palette-slate: #8a9ba5; /* cool blue-grey */
+  --palette-slate-light: #dfe5e9; /* light blue-grey */
   --palette-brown: #79530b; /* warm ink brown */
   --palette-shadow: #351800; /* warm dark, not raw black */
   --palette-grey: #8a8278; /* muted warm grey */
   --palette-blue: #456a84; /* cool blue */
   --palette-steel: #264557; /* muted blue-grey */
   --palette-blush: #b8a99a; /* warm pinkish-tan */
+  --palette-gray: #4d4d4d;
+  --palette-black: #000; /* project-card name ink; nothing else in the palette is pure black */
 
   /* Mat safe-area — govern the inset of the midground polygon's vertex homes.
      --mat-safe-inset-x must stay >= the octagon's motionRadius. */
@@ -49,6 +52,26 @@
   --nav-backdrop-inset-right: 60px; /* generous so the tilted edge clears the viewport */
   --nav-backdrop-inset-bottom: 8px;
   --nav-backdrop-inset-left: 12px;
+
+  /* ── Project card — divider rule ──
+     A thin vertical hairline between name and role. The 0.5px width renders
+     inconsistently at 1× DPI; the component (Epic 19 Step 5) draws it with a
+     crisp-hairline technique — this just holds the values. */
+  --card-divider-color: var(--palette-slate);
+  --card-divider-width: 0.5px;
+  --card-divider-height: 20px;
+  --card-divider-gap: 6px; /* left/right padding around the rule */
+
+  /* ── Project card — Learn More button padding ── */
+  --card-button-pad-x: 10px;
+  --card-button-pad-y: 4px;
+
+  /* ── Project card — shadow ──
+     Defaults to the existing --shadow-card lift so the card renders WITH a
+     shadow and the keep/soften/drop call can be made from the real grid
+     (the mock shows none). To drop it: set this to `none`. To soften it:
+     retune here. One line, no card-code change either way. */
+  --card-shadow: var(--shadow-card);
 }
 
 @theme {
@@ -90,6 +113,7 @@
   --color-tan: var(--palette-tan);
   --color-sage: var(--palette-sage);
   --color-slate: var(--palette-slate);
+  --color-slate-light: var(--palette-slate-light);
 
   /* ── Shadows ─────────────────────────────────────────────────────────────── */
   --shadow-card: 0 22px 48px -24px rgb(0 0 0 / 0.45); /* project card lift */
@@ -123,10 +147,30 @@
   --timeline-card-width-medium: 44vw;
   --timeline-card-width-large: 58vw;
 
+  /* ── Project card — type sizes (generate text-card-* SIZE utilities) ──────── */
+  --text-card-eyebrow: 0.875em; /* YEAR, TITLE */
+  --text-card-body: 1em; /* description, Learn More label */
+  --text-card-name: 1.125em; /* project name, role */
+
+  /* ── Project card — colors (generate text-/bg-card-* COLOR utilities) ──────
+     COLLISION NOTE: in Tailwind v4 the `text-*` utility is generated from
+     BOTH --text-* (size) and --color-* (color). A size suffix and a color
+     suffix that match (e.g. --text-card-body + --color-card-body) would
+     both emit `.text-card-body` and collide. The color suffixes below
+     (meta/heading/description/button/on-button) are kept DISJOINT from the
+     size suffixes above (eyebrow/body/name) on purpose. Do NOT add
+     --color-card-eyebrow / --color-card-body / --color-card-name. */
+  --color-card-meta: var(--palette-slate); /* YEAR, TITLE, role */
+  --color-card-heading: var(--palette-black); /* project name */
+  --color-card-description: var(--palette-gray); /* description */
+  --color-card-button: var(--palette-slate); /* button background */
+  --color-card-on-button: var(--color-foreground); /* button label (white) */
+  --color-card-button-hover: var(--palette-blue); /* button bg on hover */
+
   /* ── Typography ──────────────────────────────────────────────────────────── */
   --font-serif:
     "adobe-caslon-pro", "Big Caslon", "Hoefler Text", Georgia, serif;
-  --font-sans: "futura-pt", "Futura", "Century Gothic", sans-serif;
+  --font-sans: "Jost", "Century Gothic", sans-serif;
 }
 
 /* Chapter stacking — earlier chapters sit above later ones so fly-aways

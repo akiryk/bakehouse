@@ -23,8 +23,11 @@ Every animated page renders three stacked layers, back to front:
    > not a contract. Start rough; refine later. It should read as a rectangle at a glance.
 
 3. **Foreground** — the "paper": a rectangle (`--color-foreground`) that holds a
-   chapter's content. Provided by `Chapter.astro`. **One paper per chapter**; on scroll
-   it flies away and the next chapter's paper arrives.
+   chapter's content. `Chapter.astro` is a neutral `[data-chapter]` marker; `Paper.astro`
+   is the opt-in card (white box + shadow) composed inside it. Paper is opt-in
+   composition — `Chapter` + `Paper` — not a hardcoded rule: most chapters compose the
+   two together, and on scroll that paper flies away as the next chapter's arrives, but a
+   chapter that skips `Paper` sits directly on the midground instead.
 
 ---
 

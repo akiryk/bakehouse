@@ -33,7 +33,9 @@ const activeClass = (href: string) =>
       >
     </li>
     <li><a href="#" class={`${linkClasses} text-nav-text`}>Services</a></li>
-    <li><a href="#" class={`${linkClasses} text-nav-text`}>Work</a></li>
+    <li>
+      <a href="/work" class={`${linkClasses} ${activeClass("/work")}`}>Work</a>
+    </li>
   </ul>
 </nav>
 

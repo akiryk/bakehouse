@@ -80,10 +80,15 @@ there's no numeric ordering prefix on disk; the real order is the list in `pages
 
 ## The content shape: `Content.astro`
 
+`Chapter.astro` is a neutral `[data-chapter]` marker — the transform target the scroll
+engine sequences. It requires an `id` prop (matched by the scroll engine via
+`[data-chapter]`) and renders a single default slot; it knows nothing about what a
+"paper" is. Compose `Paper.astro` inside it when a chapter should render as a card.
+
 ### Standard chapter (with paper)
 
-`Chapter.astro` renders the foreground white card. It requires an `id` prop (matched
-by the scroll engine via `[data-chapter]`) and three **optional** named slots:
+`Paper.astro` renders the foreground white card: the shadow, the width, and three
+**optional** named slots:
 
 - `header` — e.g. a title or eyebrow
 - `main` — the body. Accepts arbitrary markup.
@@ -92,28 +97,32 @@ by the scroll engine via `[data-chapter]`) and three **optional** named slots:
 ```astro
 ---
 import Chapter from "../../../components/Chapter.astro";
+import Paper from "../../../components/Paper.astro";
 import StageLeft from "../../../layouts/StageLeft.astro";
 ---
 
 <StageLeft>
   <Chapter id="intro">
-    <Fragment slot="main">
-      <p>Dear ______,</p>
-      <p>Thank you for your interest …</p>
-    </Fragment>
+    <Paper>
+      <Fragment slot="main">
+        <p>Dear ______,</p>
+        <p>Thank you for your interest …</p>
+      </Fragment>
+    </Paper>
   </Chapter>
 </StageLeft>
 ```
 
-### Paperless chapter (`paper={false}`)
+### Paperless chapter (no `Paper`)
 
-Pass `paper={false}` to skip the white card and shadow entirely. Content sits
-directly on the midground. Use this for full-bleed, atmospheric chapters.
+Skip `Paper` to render no white card or shadow. Content sits directly on the
+midground, straight in `Chapter`'s default slot. Use this for full-bleed, atmospheric
+chapters.
 
 ```astro
 <StageCenter>
-  <Chapter id="my-chapter" paper={false}>
-    <div slot="main">
+  <Chapter id="my-chapter">
+    <div>
       <!-- content goes here, styled for the midground color -->
     </div>
   </Chapter>

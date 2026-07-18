@@ -12,12 +12,10 @@
 // a single on-screen anchor (see .tl-card-anchor below) nudged per-project
 // via dx/dy.
 //
-// .tl-stage is pointer-events-auto, not -none — this is a paperless
-// (paper=false) chapter, so unlike the other chapters there's no
-// chapter-paper element to opt back in; without this, none of this
-// chapter's text or images could be selected/copied, and DevTools'
-// element picker would only ever hit the fixed midground mat sitting
-// beneath it. See Chapter.astro's header comment for the full mechanism.
+// .tl-stage is pointer-events-auto, not -none — this is a bare Chapter with
+// no <Paper>, so unlike the paper chapters there's no card to opt pointer
+// events back in on. See Chapter.astro's header comment for the full
+// mechanism this guards against.
 import Chapter from "../../../components/Chapter.astro";
 import ProductCard from "@components/timeline/product-card/ProductCard.astro";
 import { CONFIG } from "./script";
@@ -29,9 +27,8 @@ const years = Array.from(
 );
 ---
 
-<Chapter id="timeline" paper={false}>
+<Chapter id="timeline">
   <div
-    slot="main"
     class="tl-stage fixed inset-0 h-dvh font-sans text-foreground pointer-events-auto"
     data-el="stage"
   >
@@ -43,8 +40,8 @@ const years = Array.from(
       <!-- opacity-0: pre-hidden so the element doesn't flash before GSAP loads.
            show("intro") in the script animates it in. -->
       <header class="tl-intro opacity-0" data-el="intro">
-        <h2 class="font-light">A little history.</h2>
-        <p class="font-light m-0 text-tl-body">
+        <h2 class="font-medium text-2xl mb-6">A little history.</h2>
+        <p class="font-light m-0 text-tl-body text-2xl leading-normal">
           I'm Adam Kiryk, a designer and web developer based in
           Durango,&nbsp;Colorado.
         </p>
@@ -71,7 +68,7 @@ const years = Array.from(
               data-year={year}
               style={`top:${(year - CONFIG.firstYear) * CONFIG.pitch}vh`}
             >
-              <span class="tl-num font-light text-right box-border w-(--tl-line-x) text-tl-year">
+              <span class="tl-num font-thin text-right box-border w-(--tl-line-x) text-tl-year lining-nums tabular-nums">
                 {year}
               </span>
               <span
@@ -127,20 +124,9 @@ const years = Array.from(
     padding-left: calc(var(--tl-line-x) + 2.5rem);
   }
 
-  /* max-width in em (not rem) so the measure scales with the fluid heading size. */
+  /* max-width in em so the measure scales with .tl-intro's own font-size. */
   .tl-intro {
     max-width: 34em;
-  }
-
-  /* clamp() for fluid type — Tailwind has no built-in clamp() utility.
-     Margin in em so the gap is relative to the heading's own font size. */
-  .tl-intro h2 {
-    font-size: clamp(2.25rem, 4.5vw, 3.25rem);
-    margin: 0 0 0.6em;
-  }
-  .tl-intro p {
-    font-size: clamp(1.15rem, 2vw, 1.5rem);
-    line-height: 1.45;
   }
 
   /* CSS mask for tape edge dissolve — Tailwind has no mask-image utility. */
@@ -169,13 +155,12 @@ const years = Array.from(
 
   /* clamp() for fluid year numbers. padding-right is a precise visual value
      (right-aligns numbers flush to the line — not an arbitrary number, but a
-     measured alignment). font-variant-numeric requires two values on one
-     declaration; Tailwind's individual lining-nums / tabular-nums utilities
-     would override each other rather than compose. */
+     measured alignment). font-variant-numeric is on the element as Tailwind's
+     lining-nums/tabular-nums utilities instead (they compose via --tw-numeric-*
+     vars, same mechanism as v3 — no conflict). */
   .tl-num {
     padding-right: 1.4rem;
     font-size: clamp(2rem, 3.4vw, 2.9rem);
-    font-variant-numeric: lining-nums tabular-nums;
   }
 
   /* height in em so the tick scales proportionally with the year number size. */
