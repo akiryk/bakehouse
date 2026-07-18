@@ -26,12 +26,23 @@
  * vhToPx is a function for the same reason) — a real fix, just a partial
  * one. Revisit if this ever matters in practice.
  *
- * Paging (this file's returned, scrubbed timeline) and the reveal (a
- * separate, autoplay timeline) are kept on different elements — the outer
- * .browse-row carries paging's translateY, the inner .browse-row-inner
- * carries the reveal's opacity/rise — mirroring the .tl-card-anchor
- * wrapper/figure split in global.css, which documents the exact failure
- * mode (GSAP fighting a second transform on the same element) this avoids.
+ * Paging, the reveal, and the per-card exit are kept on three different
+ * elements, never stacking two GSAP-driven transforms on the same one —
+ * the .tl-card-anchor wrapper/figure split in global.css documents the
+ * exact failure mode (GSAP fighting a second transform on the same
+ * element) this avoids:
+ *   - .browse-row carries entrance translateY (PEEK -> REST, OFF-BOTTOM ->
+ *     PEEK) and stays PINNED at REST once it arrives — it never itself
+ *     animates the exit.
+ *   - Each card (.browse-row-inner > article) carries its OWN nested exit
+ *     translateY, a delta relative to the row's pinned position, so 3 cards
+ *     in one row can leave independently instead of as one rigid unit. Each
+ *     card ALSO carries a static translateX, set once and never animated —
+ *     a fixed per-card personality that breaks the grid's strict column
+ *     alignment, composed on the same element as the exit's translateY
+ *     with no conflict (GSAP tracks x/y as independent sub-properties of
+ *     one transform, unlike two things fighting over the SAME axis).
+ *   - .browse-row-inner carries the first-load reveal's opacity/rise.
  */
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -156,25 +167,131 @@ const motion: ChapterMotion = {
       tl.fromTo(row, { y: initial }, { y: initial, duration: 0 }, 0);
     });
 
+    // Fisher-Yates — a fresh copy, doesn't mutate the input. Rolled once per
+    // row per chapter build (page load / SPA navigation), not per scroll
+    // frame, so one viewing always replays the same sequence forward and
+    // backward — re-rolling mid-scrub would mean the row looks different
+    // each time you pass through it, which reads as broken, not organic.
+    function shuffled<T>(arr: T[]): T[] {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+    /** Symmetric random offset in [-amount, +amount]. */
+    function jitter(amount: number): number {
+      return (Math.random() * 2 - 1) * amount;
+    }
+
+    // Scatter guard (same idea as the peek guard above): if
+    // cardScatterRange exceeds half of cardScatterGutter, two neighbors
+    // jittering straight at each other CAN overlap — warn instead of
+    // silently letting it happen. Checked once at init only.
+    if (browse.cardScatterRange > browse.cardScatterGutter / 2) {
+      console.warn(
+        `[browse] cardScatterRange (${browse.cardScatterRange}px) exceeds half of ` +
+          `cardScatterGutter (${browse.cardScatterGutter}px) — two adjacent cards ` +
+          `jittering toward each other could overlap. Keep cardScatterRange <= ` +
+          `cardScatterGutter / 2.`,
+      );
+    }
+
+    // Static per-card horizontal jitter — breaks the grid's strict column
+    // alignment. Not part of the scrubbed timeline at all (it never
+    // changes with scroll), so a plain immediate gsap.set(), same as the
+    // reveal's own initial-hidden-state sets below. Every row gets this,
+    // including the last one (which never exits) — this is a permanent
+    // visual trait of the card, not tied to the paging motion.
+    //
+    // Each card jitters independently around a REFERENCE grid position
+    // (cardScatterGutter, wider than the real colGutter) rather than its
+    // own real CSS-grid position — baseShift(i) is the constant distance
+    // between the two for column i, computed once; the random part is
+    // added on top, per card, per row. See browse.ts's own comment for why
+    // this keeps "no overlap" a guarantee rather than a hope, and for the
+    // guard above. A final corrective shift, applied per row, catches the
+    // (now much rarer, since the range here is small) case where the row's
+    // outer edge would land off the visible stage — a uniform shift
+    // preserves every card's relative position, it just relocates the row.
+    const stageWidth = window.innerWidth;
+    const naturalRowWidth =
+      browse.columns * browse.cardWidth +
+      (browse.columns - 1) * browse.colGutter;
+    const centeringMargin = (stageWidth - naturalRowWidth) / 2;
+    const center = (browse.columns - 1) / 2;
+    function baseShift(i: number): number {
+      return (i - center) * (browse.cardScatterGutter - browse.colGutter);
+    }
+
+    rowEls.forEach((row) => {
+      const cards = Array.from(
+        row.querySelectorAll<HTMLElement>(".browse-row-inner > article"),
+      );
+      if (cards.length === 0) return;
+
+      const offsets = cards.map(
+        (_, i) => baseShift(i) + jitter(browse.cardScatterRange),
+      );
+
+      const leftEdge = centeringMargin + offsets[0];
+      const rightEdge =
+        stageWidth - centeringMargin + offsets[offsets.length - 1];
+      let shift = 0;
+      if (leftEdge < 0) shift = -leftEdge;
+      else if (rightEdge > stageWidth) shift = stageWidth - rightEdge;
+
+      cards.forEach((card, i) => {
+        gsap.set(card, { x: offsets[i] + shift });
+      });
+    });
+
+    // Every card ends up at the same absolute Y (offTopY) regardless of
+    // which row it's in, but each card's OWN transform is relative to its
+    // row's pinned position (see the header comment) — so what a card
+    // actually tweens is the DELTA from rest to off-top, not the absolute
+    // value itself.
+    const exitDelta = () => offTopY() - restY();
+
     // One advance (page k → k+1) moves exactly three rows, but NOT as one
-    // shared window: the active row's own exit (accelerating, matching the
-    // site's paper fly-away ease) starts the instant the advance begins;
-    // the next row's entrance (decelerating into rest) and the row after
-    // that (rising to its own peek) don't start until enterDelayBeats after
-    // that — set close to exitBeats, the exiting row is nearly gone before
-    // anything else moves, with no overlap. advancePhaseLength() (shared
-    // with work.script.ts's derived total, so the two can't drift apart)
-    // is long enough to cover whichever of the two phases finishes later.
+    // shared window: the active row's cards each start their own exit
+    // (accelerating, matching the site's paper fly-away ease) in a random
+    // per-row order, at jittered — not perfectly even — intervals, all
+    // starting the instant the advance begins ("peeling off," not a
+    // synchronized block). The next row's entrance (decelerating into
+    // rest) and the row after that (rising to its own peek) — still one
+    // synchronized row-level move each, arriving together — don't start
+    // until enterDelayBeats after that, timed against the worst-case last
+    // card's finish (see advancePhaseLength()), so the exiting row is
+    // nearly gone before anything else moves, with no overlap.
+    // advancePhaseLength() (shared with work.script.ts's derived total, so
+    // the two can't drift apart) is long enough to cover whichever of the
+    // two phases finishes later.
     const phaseLength = advancePhaseLength();
     for (let k = 0; k < rows - 1; k++) {
       const exitStart = (k + 1) * browse.dwellBeats + k * phaseLength;
       const enterStart = exitStart + browse.enterDelayBeats;
-      tl.fromTo(
-        rowEls[k],
-        { y: restY },
-        { y: offTopY, duration: browse.exitBeats, ease: browse.exitEase },
-        exitStart,
+
+      const cards = Array.from(
+        rowEls[k].querySelectorAll<HTMLElement>(".browse-row-inner > article"),
       );
+      tl.fromTo(cards, { y: 0 }, { y: 0, duration: 0 }, 0);
+      const order = shuffled(cards.map((_, i) => i));
+      order.forEach((cardIndex, position) => {
+        const delay = Math.max(
+          0,
+          position * browse.cardExitStaggerBeats +
+            jitter(browse.cardExitJitterBeats),
+        );
+        tl.fromTo(
+          cards[cardIndex],
+          { y: 0 },
+          { y: exitDelta, duration: browse.exitBeats, ease: browse.exitEase },
+          exitStart + delay,
+        );
+      });
+
       tl.fromTo(
         rowEls[k + 1],
         { y: peekY },

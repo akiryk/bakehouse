@@ -14,13 +14,17 @@
  * positions the page's real max scrollY is one viewport short of reaching,
  * so at least 1 beat of trailing dead air is needed for the last page's
  * dwell to actually be reachable at max scroll.
+ *
+ * rows includes the trailing "All Done" page (totalPages()'s job) — the
+ * chapter pages through every project, then one more page for that
+ * message, so the scroll length needs to cover it too.
  */
 import { definePageScript, at, chapter } from "@motion/page-script";
 import { hold } from "@motion/timeline-kit";
-import { browse, advancePhaseLength } from "@config/browse";
+import { browse, advancePhaseLength, totalPages } from "@config/browse";
 import { projects } from "../data/projects";
 
-const rows = Math.ceil(projects.length / browse.columns);
+const rows = totalPages(projects.length, browse);
 const total =
   rows * browse.dwellBeats + (rows - 1) * advancePhaseLength(browse);
 
