@@ -9,10 +9,14 @@ interface Props {
    * dispatch (rendered as document.body.dataset.page) — see that file's
    * header comment for why dispatch-by-identity replaces each page having
    * its own re-runnable <script>. */
-  page: "home" | "about" | "work";
+  page: "home" | "about" | "work" | "work-detail";
+  /** Which project's content to load — only meaningful for page="work-detail",
+   * rendered as document.body.dataset.slug. initWorkDetailPage() reads it to
+   * know which project's hero-content to build a page script from. */
+  slug?: string;
 }
 
-const { title = "Bakehouse", page } = Astro.props;
+const { title = "Bakehouse", page, slug } = Astro.props;
 
 // Static (pre-JS / reduced-motion) clip-path, expressed with the same CSS
 // tokens that components/stage/motion-script.ts reads at runtime — both sources resolve identically.
@@ -59,7 +63,7 @@ const staticClipPath = [
     />
     <ClientRouter />
   </head>
-  <body data-page={page}>
+  <body data-page={page} data-slug={slug}>
     <!--
       Three layers, back to front:
         1. Background  — the body itself (--color-background, white)
@@ -208,6 +212,7 @@ const staticClipPath = [
     initHomePage,
     initAboutPage,
     initWorkPage,
+    initWorkDetailPage,
   } from "../global-scripts/page-init";
   initOctagonWobble();
   initPageTransitions();
@@ -220,6 +225,7 @@ const staticClipPath = [
     if (page === "home") initHomePage();
     else if (page === "about") initAboutPage();
     else if (page === "work") initWorkPage();
+    else if (page === "work-detail") initWorkDetailPage();
   });
 
   if (import.meta.env.DEV) {

@@ -25,8 +25,12 @@
  * Vite still code-splits them into separate chunks — Home's JS payload
  * doesn't need to include About's chapter code, and vice versa.
  */
-import { initPageEngine } from "../components/scroll-engine/motion-script";
+import {
+  initPageEngine,
+  type ChapterMotion,
+} from "../components/scroll-engine/motion-script";
 import { pages } from "../components/page-system/config";
+import type { PageConfig } from "../components/page-system/config";
 
 async function exposeBeatModelForDevtools(
   model: Awaited<ReturnType<typeof initPageEngine>>,
@@ -96,5 +100,43 @@ export async function initWorkPage(): Promise<void> {
   ]);
 
   const model = initPageEngine(pages.work, PAGE, [browseMotion]);
+  await exposeBeatModelForDevtools(model);
+}
+
+/**
+ * Work-detail's PageConfig isn't looked up from the static `pages` map
+ * above — unlike every other page, its chapter count varies per project,
+ * so it's built here from that project's own hero-content, the same
+ * "compute, don't hand-author" pattern its page script already follows
+ * (see work-detail/motion-script.ts's header comment).
+ */
+export async function initWorkDetailPage(): Promise<void> {
+  const slug = document.body.dataset.slug;
+  if (!slug) return;
+
+  const [{ heroContent }, { buildHeroPageScript, chapterIdsFor }] =
+    await Promise.all([
+      import("../pages/work-detail/hero-content"),
+      import("../pages/work-detail/motion-script"),
+    ]);
+
+  const heroes = heroContent[slug] ?? [];
+  const ids = chapterIdsFor(heroes);
+
+  const config: PageConfig = {
+    useScrollEngine: true,
+    matColor: "--palette-slate-light",
+    chapters: ids.map((id) => ({
+      id,
+      motionPath: `work-detail (data-driven, slug: ${slug})`,
+    })),
+  };
+  const chapterMotions: ChapterMotion[] = ids.map(() => ({}));
+
+  const model = initPageEngine(
+    config,
+    buildHeroPageScript(heroes),
+    chapterMotions,
+  );
   await exposeBeatModelForDevtools(model);
 }

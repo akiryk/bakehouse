@@ -191,7 +191,13 @@ export function initOctagonWobble(): void {
       "Z",
     ].join(" ");
 
-    mat!.style.clipPath = `path('${d}')`;
+    const pathValue = `path('${d}')`;
+    mat!.style.clipPath = pathValue;
+    // Broadcast the same live shape as a custom property so anything else
+    // that wants to be clipped to "the current stage shape" (e.g. a
+    // work-detail hero image) can reference it directly — one computation,
+    // any number of consumers, no duplicated vertex/wobble math.
+    document.documentElement.style.setProperty("--stage-clip-path", pathValue);
   }
 
   // ── Cross-page transition: expand / spring back ──────────────────────────

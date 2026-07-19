@@ -1,0 +1,26 @@
+---
+// Work-detail route — thin, like every other page: it just renders that
+// project's content and passes identity to <Base>. getStaticPaths() only
+// generates a real page for slugs with hero-content defined; every other
+// project's "Learn More" link 404s until its content is added.
+import Base from "../../layouts/Base.astro";
+import HeroesContent from "../work-detail/_chapters/heroes/Content.astro";
+import { heroContent } from "../work-detail/hero-content";
+import { projects } from "../work-browse/projects-data";
+
+export function getStaticPaths() {
+  return Object.keys(heroContent).map((slug) => ({ params: { slug } }));
+}
+
+const { slug } = Astro.params;
+const project = projects.find((p) => p.slug === slug);
+const heroes = heroContent[slug!] ?? [];
+---
+
+<Base
+  title={`Bakehouse — ${project?.name ?? slug}`}
+  page="work-detail"
+  slug={slug}
+>
+  <HeroesContent heroes={heroes} />
+</Base>

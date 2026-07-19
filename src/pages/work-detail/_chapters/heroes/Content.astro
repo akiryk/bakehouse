@@ -1,0 +1,79 @@
+---
+// Work-detail heroes — one masked stage image per Hero, optionally with an
+// overlaid Paper, followed by a trailing "Done" page. Fully data-driven:
+// the number of chapters rendered here varies per project (see
+// hero-content.ts), so unlike every other page's Content.astro, this one
+// loops rather than hand-listing a fixed set of chapters.
+//
+// Order here MUST match motion-script.ts's chapterIdsFor() walk exactly —
+// the engine maps rendered [data-chapter] elements to PageConfig.chapters
+// by index, not by id lookup, so the two have to agree on order.
+//
+// The stage is a STATIONARY window, not a shape that travels with the
+// image: --stage-clip-path (written once by components/stage/motion-
+// script.ts) lives on a fixed, never-transformed wrapper OUTSIDE each
+// hero-image's <Chapter> — only the <Chapter> itself (and the <img> inside
+// it) gets the page script's enter()/exit() translateY. Putting the
+// clip-path directly on the element GSAP moves was tried first and was
+// wrong: clip-path coordinates are relative to the element's OWN box, so a
+// moving element drags its mask along with it — the image appeared to
+// slide past the edges of the stage rather than being cropped BY it. With
+// the mask on a static ancestor instead, the image slides underneath a
+// hole that never moves, exactly like the ambient mat itself (whose
+// vertices wobble in place without the whole shape ever traveling) — an
+// image is only ever visible inside the stage's current outline, never
+// bleeding above or below it.
+//
+// z-index descends per chapter (mirroring work-browse's own per-row
+// convention, and global.css's .foreground-stage > :nth-child(n)):
+// earlier heroes stay visually on top of later ones, so a still-entering
+// image (rising from below, behind in DOM order) never paints over the
+// one still on its way out.
+import Chapter from "@components/Chapter.astro";
+import Paper from "@components/Paper.astro";
+import StageLeft from "@layouts/StageLeft.astro";
+import type { Hero } from "../../hero-content";
+
+interface Props {
+  heroes: Hero[];
+}
+
+const { heroes } = Astro.props;
+
+const totalSlots = heroes.reduce((n, h) => n + (h.paper ? 2 : 1), 0) + 1;
+let slot = totalSlots;
+---
+
+{
+  heroes.map((hero, i) => (
+    <>
+      {hero.paper && (
+        <StageLeft>
+          <Chapter id={`hero-paper-${i}`} zIndex={slot--}>
+            <Paper>
+              <div slot="main" class="max-w-md">
+                <h2 class="text-2xl mb-4">{hero.paper.title}</h2>
+                <p class="text-lg">{hero.paper.description}</p>
+              </div>
+            </Paper>
+          </Chapter>
+        </StageLeft>
+      )}
+      <div
+        class="fixed inset-0 overflow-hidden"
+        style="clip-path: var(--stage-clip-path)"
+      >
+        <Chapter id={`hero-image-${i}`} zIndex={slot--}>
+          <div class="absolute inset-0 w-screen h-dvh">
+            <img src={hero.image} alt="" class="w-full h-full object-cover" />
+          </div>
+        </Chapter>
+      </div>
+    </>
+  ))
+}
+<Chapter id="done" zIndex={slot--}>
+  <div class="absolute inset-0 w-screen h-dvh flex items-center justify-center">
+    <p class="font-sans font-thin text-5xl text-foreground">Done</p>
+  </div>
+</Chapter>

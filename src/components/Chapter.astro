@@ -5,6 +5,11 @@
 //
 // Props:
 //   id — required; matched by the scroll engine via [data-chapter]
+//   zIndex — optional inline stacking order, for pages that render several
+//     chapters simultaneously and need to control which stays visually on
+//     top during a cross-fade (e.g. work-detail's hero images, mirroring
+//     work-browse's own per-row z-index). Omit for the common case where
+//     chapters never visually overlap.
 //
 // pointer-events-auto is required, not decorative: Base.astro sets
 // pointer-events-none on the whole .foreground-stage so its transparent
@@ -16,12 +21,17 @@
 
 interface Props {
   id: string;
+  zIndex?: number;
 }
 
-const { id } = Astro.props;
+const { id, zIndex } = Astro.props;
 ---
 
-<article class="chapter relative pointer-events-auto" data-chapter={id}>
+<article
+  class="chapter relative pointer-events-auto"
+  data-chapter={id}
+  style={zIndex !== undefined ? `z-index: ${zIndex}` : undefined}
+>
   <slot />
 </article>
 
