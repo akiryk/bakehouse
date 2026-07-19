@@ -206,6 +206,8 @@ bakehouse/
   scroll-driven position model, and how to tune density, size mix, and timing.
 - **`docs/playwright-verification.md`** — how to drive a real headless browser to verify
   scroll-driven and responsive behavior against the actual rendered page.
+- **`docs/perf-harness.md`** — the reproducible perf harness: Core Web Vitals and image-load
+  metrics with a noise floor, for A/B-ing whether a change actually helped.
 
 ---
 
