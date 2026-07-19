@@ -9,7 +9,7 @@
 // load of any page is correct without depending on JS — but because this
 // element is transition:persist-ed (see Base.astro), this SSR output only
 // ever applies to whichever page it was FIRST rendered on in a session;
-// motion/page-transitions.ts's updateNavActiveState() is what keeps it
+// components/page-transitions/motion-script.ts's updateNavActiveState() is what keeps it
 // correct across a later client-side navigation.
 
 const { pathname } = Astro.url;

@@ -35,8 +35,9 @@ written (see below).
 
 ## Where tests live
 
-Co-locate unit tests as `*.test.ts` beside the module they cover — `motion/engine.test.ts`
-next to `motion/engine.ts`. Co-location keeps the test discoverable from the thing it
+Co-locate unit tests as `*.test.ts` beside the module they cover —
+`components/scroll-engine/motion-script.test.ts` next to
+`components/scroll-engine/motion-script.ts`. Co-location keeps the test discoverable from the thing it
 tests. Reserve a top-level `tests/` directory for cross-cutting or E2E suites if/when
 Playwright arrives.
 
@@ -47,7 +48,7 @@ wrong independent of how it looks. The first things that will qualify:
 
 - the scroll engine's chapter sequencing (which chapter is active at a given progress),
 - the octagon vertex/drift math (resolving a vertex's base + range into a position),
-- the `pages.ts` → engine wiring (a page resolves to the right ordered chapters).
+- the `page-system/config.ts` → engine wiring (a page resolves to the right ordered chapters).
 
 Do **not** write tests that assert against animation values you judge by eye (easing
 curves, exact drift offsets, pixel positions mid-flight). That's effort spent pinning down

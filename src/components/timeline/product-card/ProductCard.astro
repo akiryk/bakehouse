@@ -1,6 +1,6 @@
 ---
 // ProductCard — a project thumbnail + title + description, revealed by the
-// timeline chapter's stopTimelineAt()/reveal mechanism (motion/timeline-kit.ts).
+// timeline chapter's stopTimelineAt()/reveal mechanism (components/timeline/motion-script.ts).
 //
 // Deliberately does NOT own its own on-screen position — the caller wraps it
 // in its own positioning element (currently: Content.astro's .tl-card-anchor
@@ -17,7 +17,7 @@
 // entirely sidesteps the interaction regardless of GSAP's internal heuristics.
 //
 // data-overlay is the id the reveal mechanism targets directly (see
-// RevealSpec in timeline-kit.ts) — pass the caller's own unique id via the
+// RevealSpec in components/timeline/motion-script.ts) — pass the caller's own unique id via the
 // dataOverlay prop, e.g. the project's year.
 export type ProductCardSize = "small" | "medium" | "large";
 

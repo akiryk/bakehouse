@@ -100,37 +100,63 @@ bakehouse/
   src/
     styles/
       global.css             ← Tailwind entry + @theme tokens  (ALL colors, fonts, type)
-    config/
-      octagon.ts             ← mat wobble/shape tokens: motionRadius, defaultSpeed, edgeCurve
-      scroll.ts              ← beat unit + scroll/fly-away timing: vhPerBeat, minBeatPx, scroll.flyUp
-      pages.ts               ← each page's ordered chapter list + useScrollEngine flag
     layouts/
-      Base.astro             ← background + persistent midground octagon + <slot/>
+      Base.astro             ← background + persistent midground stage + <slot/>
     components/
       Chapter.astro          ← the foreground "paper" + slots: header / main / footer
-    motion/
-      engine.ts              ← reads a page's chapters, builds the pinned scroll timeline
-      presets.ts             ← reusable motions: flyUpAccelerate, fadeIn, paperRise, ...
-      octagon.ts             ← the ambient vertex wobble (independent of scroll)
-    chapters/
+      stage/
+        config.ts            ← mat wobble/shape tokens: motionRadius, defaultSpeed, edgeCurve
+        motion-script.ts      ← the ambient vertex wobble (independent of scroll)
+      scroll-engine/
+        config.ts            ← beat unit + scroll/fly-away timing: vhPerBeat, minBeatPx, scroll.flyUp
+        motion-script.ts      ← reads a page's chapters, builds the pinned scroll timeline
+      page-system/
+        config.ts            ← each page's ordered chapter list + useScrollEngine flag
+        motion-script.ts      ← page-scope authoring: definePageScript/at/chapter/enter/exit
+      motion-presets/
+        motion-script.ts      ← reusable motions: fadeInUpFrom/To, shiftUp, ...
+      timeline/
+        motion-script.ts      ← authoring layer for scroll-driven timeline chapters
+      page-transitions/
+        config.ts            ← cross-page transition timing
+        motion-script.ts      ← the exit/enter sequence for Astro's ClientRouter
+      beat-model/
+        motion-script.ts      ← the read-only timing API for the scroll engine
+    global-scripts/
+      page-init.ts           ← per-page bootstrapping dispatched on astro:page-load
+    pages/
+      index.astro            ← thin route for "/" — renders home/ content
+      about.astro            ← thin route for "/about" — renders about/ content
+      work.astro             ← thin route for "/work" — renders work-browse/ content
       home/
-        01-intro/
-          Content.astro      ← the "Dear ___," copy
-          motion.ts          ← this chapter's enter/exit (or "use the default")
-    assets/                  ← logo.svg and other imported assets
+        motion-script.ts      ← home page's inter-chapter choreography
+        _chapters/            ← underscore-prefixed: excluded from Astro's routing
+          01-intro/
+            Content.astro    ← the "Dear ___," copy
+            motion-script.ts  ← this chapter's enter/exit (or "use the default")
+          02-services/
+          03-timeline/
+      about/
+        motion-script.ts
+        _chapters/about/
+      work-browse/
+        motion-script.ts
+        config.ts            ← browse grid/card/paging knobs
+        projects-data.ts      ← portfolio project content
+        _chapters/browse/
   public/                    ← static files served as-is
 ```
 
 **Where do I change X?**
 
 - A color, font, or type token → `src/styles/global.css` (the `@theme` block)
-- A mat wobble range or shape parameter → `src/config/octagon.ts`
-- Scroll/beat timing (fly-away distance, ease) → `src/config/scroll.ts`
+- A mat wobble range or shape parameter → `src/components/stage/config.ts`
+- Scroll/beat timing (fly-away distance, ease) → `src/components/scroll-engine/config.ts`
 - A chapter's copy or images → that chapter's `Content.astro`
-- A chapter's animation → that chapter's `motion.ts`
-- A motion you want to reuse everywhere → `src/motion/presets.ts`
-- The order of chapters, or whether a page animates → `src/config/pages.ts`
-- The scroll engine's fundamental behavior → `src/motion/engine.ts` (rare; see architecture.md)
+- A chapter's animation → that chapter's `motion-script.ts`
+- A motion you want to reuse everywhere → `src/components/motion-presets/motion-script.ts`
+- The order of chapters, or whether a page animates → `src/components/page-system/config.ts`
+- The scroll engine's fundamental behavior → `src/components/scroll-engine/motion-script.ts` (rare; see architecture.md)
 
 ---
 
@@ -148,7 +174,7 @@ bakehouse/
     design-system values live.
 
   Motion and behavior values (wobble ranges, easings, durations) live in
-  `src/config/octagon.ts` and `src/config/scroll.ts`. **Never hardcode a color, font, size,
+  `src/components/stage/config.ts` and `src/components/scroll-engine/config.ts`. **Never hardcode a color, font, size,
   timing, or shadow in a component** — reach for a token (a Tailwind utility, a CSS
   variable, or a value from one of those config files). If a value affects how the site
   looks or feels, it belongs in a token home, not inline. **This rule applies to every
@@ -196,11 +222,11 @@ bakehouse/
 - **`docs/architecture.md`** — the three layers, the chapter contract, and the
   escape-hatch ladder that keeps the framework from locking us in.
 - **`docs/authoring-content.md`** — add, edit, reorder, or remove chapters; the
-  `Content.astro` slot shape; the `pages.ts` manifest.
+  `Content.astro` slot shape; the `page-system/config.ts` manifest.
 - **`docs/motion.md`** — the scroll engine, the page-script/chapter-beats two-level
   model, presets, reduced-motion handling, and the ambient mat wobble.
 - **`docs/design-tokens.md`** — the Tailwind `@theme` tokens, the Adobe Caslon Pro setup,
-  and `config/octagon.ts` / `config/scroll.ts`.
+  and `stage/config.ts` / `scroll-engine/config.ts`.
 - **`docs/testing.md`** — the testing philosophy, the always-on `astro check` gate, tool
   choices, and where tests live / when to write them.
 - **`docs/scroll-shapes.md`** — the ambient scroll-shapes layer: config reference,

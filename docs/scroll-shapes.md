@@ -32,7 +32,7 @@ The shapes are atmosphere, not content:
 src/components/scroll-shapes/
   ScrollShapes.astro   ← the container element; accepts a config prop
   config.ts            ← ScrollShapesConfig interface + defaultConfig
-  motion.ts            ← shape generation + the scroll-driven position formula
+  motion-script.ts      ← shape generation + the scroll-driven position formula
 ```
 
 **`ScrollShapes.astro`** renders a single `position: fixed; inset: 0` container
@@ -42,7 +42,7 @@ passed to the client via a `data-config` JSON attribute (Astro islands have no o
 to hand a plain object to a plain `<script>`).
 
 **Gotcha: shape generation waits for `window.load`, not script execution.** The scroll
-engine (`engine.ts`) gives the page its real scrollable height by appending a spacer to
+engine (`components/scroll-engine/motion-script.ts`) gives the page its real scrollable height by appending a spacer to
 `<body>` — but that engine script runs _later in document order_ than `ScrollShapes`'s own
 script (it's placed in the ambient slot, ahead of the chapters). Measuring
 `document.documentElement.scrollHeight` at script-execution time would see the page
@@ -71,7 +71,7 @@ values (`src/pages/index.astro` passes it straight through, unmodified). A page 
 different behavior spreads it and overrides only what differs:
 
 ```ts
-import { defaultConfig } from "../components/scroll-shapes/config";
+import { defaultConfig } from "@components/scroll-shapes/config";
 
 const otherPageConfig = {
   ...defaultConfig,
@@ -86,7 +86,7 @@ own `scrollZone` override this way, which meant edits to `defaultConfig.scrollZo
 `config.ts` had _zero effect_ on the home page — the override silently won every time. If
 a page doesn't need to diverge from the default for a given field, don't re-specify it.
 
-**`motion.ts`** does the actual work — see **Behavior** below for the model it implements.
+**`motion-script.ts`** does the actual work — see **Behavior** below for the model it implements.
 
 ## Config reference
 
@@ -111,8 +111,9 @@ its whole lifetime; only its position (and, indirectly, its rendered color) chan
 Shapes don't carry a color value. Each shape's div gets the Tailwind utilities `bg-mat
 mix-blend-multiply` — nothing else. `bg-mat` resolves to `background-color:
 var(--color-mat)`, the same live CSS custom property the midground polygon and the nav
-text already track (`--color-nav-text: var(--color-mat)` in `global.css`); `page-script.ts`
-writes a freshly-interpolated value to it via `root.style.setProperty("--color-mat", ...)`
+text already track (`--color-nav-text: var(--color-mat)` in `global.css`);
+`page-system/motion-script.ts` writes a freshly-interpolated value to it via
+`root.style.setProperty("--color-mat", ...)`
 on every scrubbed frame as chapters morph (tan → yellow → slate on the home page).
 `mix-blend-mode: multiply` renders each shape as a darker patch of whatever that current
 color is, rather than an independent hue — so as the midground morphs, the shapes morph
@@ -120,7 +121,7 @@ with it, for free.
 
 **Multiply is applied twice, at two different levels, for two different jobs:**
 
-- **Child level** (`mix-blend-multiply` on each shape div, set in `motion.ts`) — blends
+- **Child level** (`mix-blend-multiply` on each shape div, set in `motion-script.ts`) — blends
   overlapping shapes **with each other**. Two overlapping shapes read as compounded-darker
   than either alone, rather than just stacking flat (same-colored shapes composited with
   plain `normal` blending are invisible as an overlap — compositing an identical color
@@ -197,7 +198,7 @@ page position `P` (vh) by `scrollEntry = (P / 100) * viewportHeight - viewportHe
 - `start > 100` → every entry point falls below the fold — e.g. `start: 110` means
   nothing appears until the user has scrolled 10vh past the first screen.
 - `end` has no fixed ceiling. A value at or beyond the page's real height is clamped to
-  the page's actual max scroll at runtime (`motion.ts` still measures
+  the page's actual max scroll at runtime (`motion-script.ts` still measures
   `document.documentElement.scrollHeight` for this one purpose), so "keep entering all
   the way to the bottom" doesn't require knowing or tracking the page's exact length —
   set `end` generously high (e.g. `100_000`) and let the clamp do the work.
@@ -293,7 +294,7 @@ width: { min: 1, max: 10 }, height: { min: 10, max: 30 } }]` for 5 large shapes 
 - **Opacity (color is not configurable per-shape)** → the `opacity` range. Color always
   tracks the live `--color-mat` token via `mix-blend-mode: multiply` — see **Color** above.
   To change the _palette_ shapes morph through, edit the midground's own color stops —
-  the `morph()` moments in `home.script.ts` (or a chapter's own `script.ts` for an
+  the `morph()` moments in `pages/home/motion-script.ts` (or a chapter's own `script.ts` for an
   intra-chapter morph) — not anything in `scroll-shapes/`.
 - **The z-index itself** → `--z-shapes` in `global.css`'s `@theme` block. Don't hardcode
   a numeric z-index in the component.

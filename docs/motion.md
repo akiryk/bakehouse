@@ -12,10 +12,11 @@ content reveals, then its paper flies away as the next arrives) is driven by **s
 progress** — not by intercepting wheel or touch events. This keeps keyboard navigation,
 momentum, and mobile behavior intact, and lets us honor reduced-motion cleanly.
 
-`engine.ts` (`initPageEngine`) responsibilities:
+`components/scroll-engine/motion-script.ts` (`initPageEngine`) responsibilities:
 
-- Read the active page's config (from `pages.ts`) and its page script (e.g.
-  `home.script.ts`, authored with `page-script.ts`'s `definePageScript`/`at()`).
+- Read the active page's config (from `page-system/config.ts`) and its page script (e.g.
+  `pages/home/motion-script.ts`, authored with `page-system/motion-script.ts`'s
+  `definePageScript`/`at()`).
 - Resolve the page script into placed moments (`chapter`, `enter`, `exit`, `morph`,
   `hold`, `show`, `hide`) at page-absolute beats — this replaces the old fixed
   per-chapter dwell-then-fly formula; scroll geometry is now _derived from what the
@@ -29,7 +30,7 @@ paper is. (See `architecture.md` → the engine's contract.)
 
 ---
 
-## Calling `initPageEngine` under the SPA router — `page-init.ts`
+## Calling `initPageEngine` under the SPA router — `global-scripts/page-init.ts`
 
 `initPageEngine` needs to run **on every visit to a page**, including a _repeat_ visit in
 the same browser session (Home → About → Home) — the site navigates via Astro's
@@ -56,12 +57,12 @@ assumed from docs):
 
 So there's no way to give a bundled, import-using script tag `data-astro-rerun` at all.
 
-**The fix: centralize.** `src/motion/page-init.ts` exports one function per page
+**The fix: centralize.** `src/global-scripts/page-init.ts` exports one function per page
 (`initHomePage()`, `initAboutPage()`) — ordinary bundled TypeScript, each dynamically
 importing its own page script + chapter motions so Vite still code-splits them per page.
-`Base.astro`'s own `<script>` (which only ever needs to run **once** — see `octagon.ts`'s
-singleton reasoning above) imports `page-init.ts` and registers **one**
-`astro:page-load` listener that dispatches by page identity:
+`Base.astro`'s own `<script>` (which only ever needs to run **once** — see
+`components/stage/motion-script.ts`'s singleton reasoning above) imports `page-init.ts` and
+registers **one** `astro:page-load` listener that dispatches by page identity:
 
 ```ts
 document.addEventListener("astro:page-load", () => {
@@ -81,8 +82,8 @@ so this is always correct for whichever page is currently live.
 used to have its own `data-astro-rerun` script calling `initScrollShapes` — same problem,
 same fix: that component now renders only its container + config; `initHomePage()` finds
 the container and calls `initScrollShapes` directly. Adding scroll-shapes to a new page
-means adding that same call to that page's `page-init.ts` function, not just the component
-import.
+means adding that same call to that page's `global-scripts/page-init.ts` function, not just
+the component import.
 
 **Re-running these functions must stay idempotent.** Once a page's init function can
 genuinely run more than once per session, anything it registers globally (not scoped to
@@ -103,8 +104,8 @@ normal case rather than an edge case.
 ## Scroll geometry
 
 Geometry is authored, not computed from fixed constants — it comes directly from where
-things are placed in the page script (`src/motion/home.script.ts`, using the `at()` /
-`chapter()` / `enter()` / `exit()` vocabulary from `src/motion/page-script.ts`):
+things are placed in the page script (`src/pages/home/motion-script.ts`, using the `at()` /
+`chapter()` / `enter()` / `exit()` vocabulary from `src/components/page-system/motion-script.ts`):
 
 ```ts
 export const PAGE = definePageScript({
@@ -120,15 +121,17 @@ export const PAGE = definePageScript({
 ```
 
 - **`chapter(id, { dwellBeats })`** places a chapter's dwell window at a page-absolute
-  beat. During that window the chapter's own `beats()` timeline (from its `motion.ts`) is
-  scrubbed, chapter-relative. `dwellBeats` defaults to 0 for chapters with no beats.
+  beat. During that window the chapter's own `beats()` timeline (from its
+  `motion-script.ts`) is scrubbed, chapter-relative. `dwellBeats` defaults to 0 for
+  chapters with no beats.
 - **`exit(id, { over, to?, ease? })`** / **`enter(id, { over, from?, ease? })`** animate a
   chapter's `[data-chapter]` paper off/on screen. Defaults come from `scroll.flyUp` in
-  `config/scroll.ts` (`distance: 110vh`, `ease: "power2.in"`) unless overridden.
+  `components/scroll-engine/config.ts` (`distance: 110vh`, `ease: "power2.in"`) unless
+  overridden.
 - **`morph({ from, to, over })`** and **`hold(beats)`** place a color morph or dead air at
   an absolute beat — see **Midground color morph** below.
 
-The engine (`buildModelFromPageScript` in `engine.ts`) reads these placements back out to
+The engine (`buildModelFromPageScript` in `components/scroll-engine/motion-script.ts`) reads these placements back out to
 build each chapter's `scrollVH` window for `ScrollTrigger` and devtools — there is no
 separate slot-accumulator pass; the resolved script _is_ the geometry.
 
@@ -142,10 +145,11 @@ scroll ranges wildly wrong.
 actual max `scrollY` is always exactly **one viewport short** of that (`scrollHeight -
 innerHeight`; the spacer is the only element contributing document height, and you can
 never scroll a page "past" its own last screen). That means the final `vhPerBeat` (1 beat,
-100vh) of the master timeline can never actually be reached by scrolling. `home.script.ts`'s
-trailing `at(16.4, hold(1))` is invisible there only because the timeline chapter's real
-motion (`travel({ to: 2026 })`) finishes with beats to spare before it. A page script whose
-real content/motion runs all the way up to its own end — as `about.script.ts` does, since
+100vh) of the master timeline can never actually be reached by scrolling.
+`pages/home/motion-script.ts`'s trailing `at(16.4, hold(1))` is invisible there only because
+the timeline chapter's real motion (`travel({ to: 2026 })`) finishes with beats to spare
+before it. A page script whose real content/motion runs all the way up to its own end —
+as `pages/about/motion-script.ts` does, since
 its whole chapter is one continuous scrub — needs a trailing `hold(beats)` of **at least 1**
 or the last stretch of that motion is measurably unreachable at max scroll (confirmed via
 Playwright: dropping it below 1 left the About paper's scrub short of its target).
@@ -154,26 +158,27 @@ Playwright: dropping it below 1 left the About paper's scrub short of its target
 
 ## A chapter's motion: two fields
 
-A chapter's `motion.ts` is much smaller than the page script it's placed by. It declares
-only:
+A chapter's `motion-script.ts` is much smaller than the page script it's placed by. It
+declares only:
 
 - **beats** — an optional function that builds a scrubbed GSAP timeline for intra-chapter
   reveals. Receives the `[data-chapter]` container and the chapter's `ChapterBeats` (for
   devtools). Omit for chapters with no intra-chapter reveals.
 - **schedule** — an optional pre-resolved event schedule (built with `resolveSchedule()` in
-  `timeline-kit.ts`) for the `?beats` devtools HUD. Omit for scriptless chapters.
+  `components/timeline/motion-script.ts`) for the `?beats` devtools HUD. Omit for scriptless
+  chapters.
 
 Everything about _where a chapter sits on the page_ — its dwell length, when its paper
 flies away, when it enters — is authored in the page script instead (`chapter()`, `enter()`,
-`exit()` in `home.script.ts`; see **Scroll geometry** above), not here. This is the
+`exit()` in `pages/home/motion-script.ts`; see **Scroll geometry** above), not here. This is the
 two-level model from Epic 15: chapter scripts stay chapter-relative; only the page script
 knows where chapters sit.
 
 Always type the export as `ChapterMotion` so TypeScript surfaces all available fields:
 
 ```ts
-import type { ChapterMotion } from "../../../motion/engine";
-import { compile, resolveSchedule } from "../../../motion/timeline-kit";
+import type { ChapterMotion } from "@components/scroll-engine/motion-script";
+import { compile, resolveSchedule } from "@components/timeline/motion-script";
 import { SCRIPT } from "./script";
 
 const motion: ChapterMotion = {
@@ -187,11 +192,11 @@ export default motion;
 ```
 
 A chapter with no intra-chapter reveals at all (just a paper that arrives and later flies
-away) exports an empty `{}` — see `chapters/home/intro/motion.ts`.
+away) exports an empty `{}` — see `pages/home/_chapters/01-intro/motion-script.ts`.
 
 ---
 
-## Presets: `src/motion/presets.ts`
+## Presets: `src/components/motion-presets/motion-script.ts`
 
 ### Beat presets
 
@@ -206,7 +211,7 @@ Example beats timeline:
 
 ```ts
 import gsap from "gsap";
-import { fadeInUpFrom, fadeInUpTo, shiftUp } from "../../../motion/presets";
+import { fadeInUpFrom, fadeInUpTo, shiftUp } from "@components/motion-presets/motion-script";
 
 beats(container) {
   const a = container.querySelector("[data-beat='a']");
@@ -244,9 +249,9 @@ at(0, morph({ from: "--palette-tan", to: "--palette-yellow", over: 1 })),
 `gsap.utils.interpolate(colorA, colorB)(proxy.t)` and writes the result to
 `--color-mat` on `:root`. `@property` was not used — GSAP scrub sets properties
 directly (not via CSS transitions), so `@property` would add no benefit and would
-require browser support checking. This compiler lives in `page-script.ts`'s `morph` case
-(page scope) and `timeline-kit.ts`'s `morph` case (chapter scope) — both write the same
-property via the same technique.
+require browser support checking. This compiler lives in `page-system/motion-script.ts`'s
+`morph` case (page scope) and `timeline/motion-script.ts`'s `morph` case (chapter scope) —
+both write the same property via the same technique.
 
 `--color-nav-text: var(--color-mat)` in `global.css` means the nav color
 tracks the morph automatically with no additional animation.
@@ -267,8 +272,9 @@ Add new palette entries there; reference them by name in a `morph()` moment.
 
 ### Intra-beat midground morphs
 
-`timeline-kit.ts` already provides a `morph({ from, to, over })` moment for a chapter's own
-`sequence` — reach for that first (see `script.ts` examples in `chapters/home/timeline/`).
+`components/timeline/motion-script.ts` already provides a `morph({ from, to, over })` moment
+for a chapter's own `sequence` — reach for that first (see `script.ts` examples in
+`pages/home/_chapters/03-timeline/`).
 The same proxy technique it uses can also be hand-rolled directly **inside a `beats()`
 timeline**, for cases outside that DSL. Add a `proxy` tween to the returned timeline at
 whatever beat position you need:
@@ -320,20 +326,20 @@ All motion is wrapped in `gsap.matchMedia()`. When `prefers-reduced-motion: redu
 ## The ambient mat
 
 Separate from everything above. The midground mat's vertex wobble is a **continuous,
-always-on** animation that lives in `octagon.ts` and runs regardless of scroll or which
+always-on** animation that lives in `components/stage/motion-script.ts` and runs regardless of scroll or which
 chapter is showing (the mat persists in `Base.astro`).
 
 ### Structure
 
 The mat is a `position: fixed; inset: 0` `<div>` (full viewport). Its visible shape
-comes from `clip-path: path()` — a cubic-bezier path emitted by `octagon.ts` every
+comes from `clip-path: path()` — a cubic-bezier path emitted by `components/stage/motion-script.ts` every
 animation frame. The div itself has no inset gutter; all margins come from where the
 vertex homes are placed.
 
 ### clip-path: path() — why and the key traps
 
 `polygon()` supports only straight lines. Curves need `path()`, which accepts SVG cubic
-beziers (`C`). Since `octagon.ts` already rewrites the clip string every frame for the
+beziers (`C`). Since `components/stage/motion-script.ts` already rewrites the clip string every frame for the
 wobble, switching its _output_ from `polygon()` to `path()` is a contained change.
 
 Two traps to keep in mind:
@@ -347,7 +353,7 @@ Two traps to keep in mind:
   `getBoundingClientRect()` — letting the browser resolve the expression for you.
 
 `Base.astro` keeps a `polygon()` static clip (using CSS vars) for the SSR / pre-JS
-instant. Once `octagon.ts` runs it overwrites with the `path()` — the shapes are
+instant. Once `components/stage/motion-script.ts` runs it overwrites with the `path()` — the shapes are
 identical, so there is no visible jump.
 
 ### Safe-area model
@@ -367,7 +373,7 @@ centerLeft:  ( insetX,      H × 0.5   )
 ```
 
 **Invariant:** every `--mat-safe-inset-*` value must be >= `motionRadius`. Violation
-causes edge clipping; `octagon.ts` logs a warning at init.
+causes edge clipping; `components/stage/motion-script.ts` logs a warning at init.
 
 ### Curved edges — `edgeCurve`
 
@@ -382,7 +388,7 @@ symmetric, edge-parallel bezier handles. The **corners have none** (sharp joins)
   scale relative to it.
 - **Corner control points** = the corner vertex itself → zero tangent at corners → sharp join.
 
-The single dial is `edgeCurve` in `config/octagon.ts` (default `0.035` = 3.5%).
+The single dial is `edgeCurve` in `components/stage/config.ts` (default `0.035` = 3.5%).
 
 Each edge becomes two cubic segments: `corner → C corner cp2=center−handle center` and
 `center → C cp1=center+handle corner corner`. This gives a smooth bow peaking at the
@@ -399,7 +405,7 @@ written once at init and recomputed on resize.
 
 ### Measurement & resize (perf)
 
-`octagon.ts` caches `W`, `H`, the resolved inset px values, and the computed handle lengths.
+`components/stage/motion-script.ts` caches `W`, `H`, the resolved inset px values, and the computed handle lengths.
 The per-frame wobble tick reads only from the cache — no `getBoundingClientRect` per frame
 (that forces a layout every frame → jank). On resize (debounced 100 ms) the cache is
 refreshed and the path redrawn.

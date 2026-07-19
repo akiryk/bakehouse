@@ -35,7 +35,7 @@ Every animated page renders three stacked layers, back to front:
 
 A page is not a hand-built scroll of sections. It is a manifest: an ordered list of
 chapters plus a flag for whether the scroll engine is active. See
-`authoring-content.md` for the `pages.ts` shape.
+`authoring-content.md` for the `page-system/config.ts` shape.
 
 This is what makes "more or fewer chapters" a one-line edit and "reorder chapters" a
 reshuffle of a list. The engine renders whatever list it's handed and knows nothing
@@ -47,10 +47,11 @@ about how many there are.
 
 - **content** — `Content.astro`, the markup. Organized as optional `header` / `main` /
   `footer` slots, where `main` accepts arbitrary markup.
-- **motion** — `motion.ts`, which describes the chapter's own intra-chapter reveals (a
-  `beats` timeline, chapter-relative). How the chapter _enters and leaves the page_ — its
-  paper's fly-away, its arrival, its dwell length — is placed one level up, in the page's
-  script (`chapter()`/`enter()`/`exit()` in `pages.ts`'s page script; see `motion.md`).
+- **motion** — `motion-script.ts`, which describes the chapter's own intra-chapter reveals
+  (a `beats` timeline, chapter-relative). How the chapter _enters and leaves the page_ —
+  its paper's fly-away, its arrival, its dwell length — is placed one level up, in the
+  page's own script (`chapter()`/`enter()`/`exit()` in each page's `motion-script.ts`; see
+  `motion.md`).
   This is the two-level model: chapter scripts stay chapter-relative, the page script is
   the only place that knows where chapters sit.
 
@@ -80,11 +81,11 @@ didn't anticipate, you **use less of the framework** — you don't modify it. Ea
 below just opts out of one more convenience:
 
 1. **Use the defaults.** Put content in the slots, name a motion preset. The common path.
-2. **Bespoke motion, normal content.** Write a chapter's `motion.ts` to compose GSAP
-   directly instead of naming a preset. Presets are a library, never a requirement.
+2. **Bespoke motion, normal content.** Write a chapter's `motion-script.ts` to compose
+   GSAP directly instead of naming a preset. Presets are a library, never a requirement.
 3. **Bespoke content shape.** Skip header/main/footer and write a custom content
    component. The engine only needs the chapter's enter/exit hooks; the markup is yours.
-4. **Normal-scroll page.** Set `useScrollEngine: false` in `pages.ts`. That page renders
+4. **Normal-scroll page.** Set `useScrollEngine: false` in `page-system/config.ts`. That page renders
    in ordinary document flow — write any HTML, ignore the paper metaphor entirely.
 5. **Fully bespoke page.** A page is ultimately just an `.astro` file. Give it a
    different layout, or no shared layout at all.
@@ -98,7 +99,7 @@ You never edit shared code to climb down this ladder.
 There is exactly one kind of change that _does_ mean editing shared code: changing the
 engine's **fundamental default behavior** for everyone — e.g. deciding chapters should
 cross-fade and overlap instead of fly-away-then-arrive. That's an edit to
-`motion/engine.ts` and/or the default preset. But because the engine is a single
+`components/scroll-engine/motion-script.ts` and/or the default preset. But because the engine is a single
 isolated module with a clear contract, it's a contained change in a known place, not a
 hunt across the codebase. And even then, a single page can be handed an engine variant
 without disturbing the others. So even "rewrite the rules" has a clean address.

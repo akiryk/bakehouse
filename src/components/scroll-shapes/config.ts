@@ -77,7 +77,7 @@ export interface ScrollShapesConfig {
   opacity: { min: number; max: number };
   /**
    * How the layer flies in from below on a "bh:paper-entered" signal
-   * (dispatched by motion/page-transitions.ts once the incoming page's
+   * (dispatched by components/page-transitions/motion-script.ts once the incoming page's
    * paper has finished fading in — see that module for the timing/lead
    * relative to the paper fade). Every shape's current scroll-formula y
    * (see motion.ts) is offset downward by one viewport height at rest,

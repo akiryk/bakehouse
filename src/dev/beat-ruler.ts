@@ -26,7 +26,10 @@
  * Reads only BeatModel + window.scrollY. Zero timing logic.
  */
 
-import type { BeatModel, ScheduledEvent } from "../motion/beat-model";
+import type {
+  BeatModel,
+  ScheduledEvent,
+} from "../components/beat-model/motion-script";
 
 /** Minimum rendered height for a zero-length event span (px). */
 const MIN_SPAN_PX = 4;
@@ -411,7 +414,7 @@ export function initBeatRuler(model: BeatModel): void {
 
   // ── Page HUD (?beats) ─────────────────────────────────────────────────────────
   // Activated by ?beats in the URL. Positioned at bottom-left, above the
-  // chapter-level timeline HUD (which timeline-kit.ts places at bottom:12px).
+  // chapter-level timeline HUD (which components/timeline/motion-script.ts places at bottom:12px).
   // Shows: page beat / total · active chapter · chapter beat / ch-total
 
   if (new URLSearchParams(window.location.search).has("beats")) {

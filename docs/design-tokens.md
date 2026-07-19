@@ -6,8 +6,8 @@ Two homes, split by concern:
   `src/styles/global.css`. Declaring them there generates both utility classes
   (`bg-mat`, `text-ink`, `font-serif`) **and** `:root` CSS variables
   (`var(--color-mat)`), so the same token is reachable from markup and from JS/CSS.
-- **Motion** -- wobble radius, speed -- live in `src/config/octagon.ts` and
-  `src/config/scroll.ts`, because they're consumed by GSAP, not by styling.
+- **Motion** -- wobble radius, speed -- live in `src/components/stage/config.ts` and
+  `src/components/scroll-engine/config.ts`, because they're consumed by GSAP, not by styling.
 
 Rule: if a value affects how the site looks or feels, it belongs in one of these -- never
 inline in a component.
@@ -88,8 +88,9 @@ shadow mechanism on the paper.
 ## Mat safe-area tokens
 
 These live on `:root` directly (not inside `@theme`) because they are consumed as plain
-CSS custom properties -- by the static clip-path in `Base.astro` and by `octagon.ts` via
-`getComputedStyle` -- not as Tailwind utility classes.
+CSS custom properties -- by the static clip-path in `Base.astro` and by
+`components/stage/motion-script.ts` via `getComputedStyle` -- not as Tailwind utility
+classes.
 
 ```css
 /* src/styles/global.css */
@@ -107,7 +108,8 @@ mat's visible left edge by construction.
 
 **Invariant:** every token value must be >= `motionRadius` (currently 10px). If an inset
 falls below the radius, an outward-drifting vertex can reach the clip boundary and produce
-a false flat edge. `octagon.ts` logs a warning at init if this is violated.
+a false flat edge. `components/stage/motion-script.ts` logs a warning at init if this is
+violated.
 
 The visible margin on each side breathes by +/- `motionRadius` around the inset:
 sides ~10-30 px, bottom ~30-50 px, top ~130-150 px.
@@ -257,12 +259,12 @@ set during the build; the point is that there's one home for them.
 
 ---
 
-## Motion tokens: `src/config/octagon.ts` and `src/config/scroll.ts`
+## Motion tokens: `src/components/stage/config.ts` and `src/components/scroll-engine/config.ts`
 
 Behavioral values GSAP needs, kept out of the styling layer, split across two files by
-domain rather than one shared `config/motion.ts`.
+domain rather than one shared config file.
 
-**`src/config/octagon.ts`** exports `octagonShape` -- the mat's wobble and shape config:
+**`src/components/stage/config.ts`** exports `octagonShape` -- the mat's wobble and shape config:
 
 ```ts
 export const octagonShape = {
@@ -276,12 +278,13 @@ export const octagonShape = {
 `0.1`+ = pronounced curve. Handle length = `edgeCurve × side` (width for top/bottom edges,
 height for left/right). Recomputed on resize.
 
-Vertex homes are **not** stored here. They are derived at runtime in `motion/octagon.ts` by
-measuring the viewport and resolving the `--mat-safe-inset-*` tokens via a probe element
-(not `getComputedStyle` string-parse, which fails for `clamp()` values). To change the
-shape or margins, edit those tokens in `global.css`; `octagon.ts` picks them up automatically.
+Vertex homes are **not** stored here. They are derived at runtime in
+`components/stage/motion-script.ts` by measuring the viewport and resolving the
+`--mat-safe-inset-*` tokens via a probe element (not `getComputedStyle` string-parse,
+which fails for `clamp()` values). To change the shape or margins, edit those tokens in
+`global.css`; `motion-script.ts` picks them up automatically.
 
-**`src/config/scroll.ts`** exports the beat unit and scroll/fly-away timing:
+**`src/components/scroll-engine/config.ts`** exports the beat unit and scroll/fly-away timing:
 
 ```ts
 export const vhPerBeat = 100; // vh of scroll per beat
@@ -301,15 +304,16 @@ in the `@theme` block.
 
 ---
 
-## Portfolio browse: `src/config/browse.ts` and `src/data/projects.ts`
+## Portfolio browse: `src/pages/work-browse/config.ts` and `src/pages/work-browse/projects-data.ts`
 
-Same split as `octagon.ts`/`scroll.ts` above, applied to the `/work` grid (Epic 19): content
-and knobs live in separate files, and knobs are further split by who consumes them.
+Same split as `stage/config.ts`/`scroll-engine/config.ts` above, applied to the `/work`
+grid (Epic 19): content and knobs live in separate files, and knobs are further split by
+who consumes them.
 
-- **`src/data/projects.ts`** exports the typed `Project[]` array -- the content (slug, year,
-  name, role, title, description, optional image). This is what grows as real case studies
-  replace the dummy entries; nothing here is a design/geometry value.
-- **`src/config/browse.ts`** exports `BrowseConfig` and the `browse` object -- every gutter,
+- **`src/pages/work-browse/projects-data.ts`** exports the typed `Project[]` array -- the
+  content (slug, year, name, role, title, description, optional image). This is what grows
+  as real case studies replace the dummy entries; nothing here is a design/geometry value.
+- **`src/pages/work-browse/config.ts`** exports `BrowseConfig` and the `browse` object -- every gutter,
   card dimension, dwell length, and reveal timing the grid, the card, and the paging motion
   need. Split within the file by who reads it:
   - **Geometry (px)** -- `columns`, `cardWidth/cardHeight/imageHeight`, `rowGutter`/`colGutter`
@@ -320,6 +324,6 @@ and knobs live in separate files, and knobs are further split by who consumes th
   - **Timing (beats) and behavior** -- `dwellBeats`, `advanceBeats`, `reveal`, `clipToBand` --
     stays JS-only, read directly by the paging motion (Epic 19 Step 7). No CSS equivalent.
 
-`browse.ts` is the single home for every one of these values -- a later story tuning a
+`work-browse/config.ts` is the single home for every one of these values -- a later story tuning a
 gutter or a dwell length edits the `browse` object, once, rather than a literal buried in a
 component.

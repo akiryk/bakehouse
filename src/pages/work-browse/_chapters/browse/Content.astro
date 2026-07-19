@@ -1,0 +1,136 @@
+---
+// Browse chapter — the /work grid. Bare Chapter, no Paper: cards sit
+// directly on the mat, not inside a paper card (see Chapter.astro).
+//
+// DOM: per-row groups, not one flat grid (Story 19.7 restructure of 19.6).
+// Each .browse-row holds one page's worth of cards (browse.columns across).
+// This serves two presentations from one markup, switched entirely by
+// which Tailwind utility classes motion.ts adds/removes at runtime — no
+// custom CSS class names carry any layout meaning (see CLAUDE.md's
+// Tailwind-first rule; the only custom CSS left is .browse-row-inner's
+// grid-template-columns and the shared .browse-max-h, both genuinely
+// inexpressible in Tailwind — reason 1):
+//   - Default / reduced-motion: rows sit in normal flow (space-y-* handles
+//     the row gutter), the column scrolls internally (overflow-y-auto +
+//     .browse-max-h) — every project reachable by ordinary scroll, no JS.
+//   - Full motion (motion.ts): swaps the column to relative/overflow-visible/
+//     w-screen/h-dvh and each row to absolute/inset-x-0/top-0/mt-0 — motion.ts
+//     then drives each row's own translateY independently (REST/PEEK/
+//     OFF-TOP/OFF-BOTTOM per the epic's sliding-window model).
+// The outer .browse-row carries that paging translateY; the inner
+// .browse-row-inner carries the separate first-load reveal (opacity + rise)
+// on rows 0/1 only — kept on a different element so GSAP's own transform
+// never fights another transform on the same element (the .tl-card-anchor
+// precedent in global.css documents exactly the failure mode this avoids).
+// Rows 0/1 get a static opacity-0 (matching the timeline chapter's own
+// .tl-intro) so there's no flash of fully-visible content before motion.ts's
+// gsap.set() hides it pre-reveal — motion.ts explicitly re-hides then
+// reveals these under full motion, and explicitly un-hides them under
+// reduced motion (which never runs the reveal at all).
+//
+// clipToBand (browse.ts) is a build-time authoring choice, not a runtime
+// toggle: when true, the column is wrapped in a band using the same
+// overflow-hidden + .browse-max-h treatment so an exiting row clips at the
+// mat's safe area instead of visibly crossing the nav mid-flight (Step 7's
+// documented fallback). Default is false — rows fly fully off-top, under
+// the nav.
+//
+// z-index (inline, not a Tailwind class): a data-driven per-row VALUE, not
+// a reusable design token — same reasoning as the timeline chapter's own
+// per-year `top:${...}vh` inline style. Earlier rows sit above later ones,
+// mirroring global.css's .foreground-stage > :nth-child(n) convention for
+// chapters — without it, a still-entering row (rising from OFF-BOTTOM,
+// behind in DOM order) paints OVER a row still settling into REST/PEEK
+// above it whenever their paths cross mid-transition, since position:
+// absolute elements with no z-index stack in DOM order by default.
+//
+// The trailing "All Done" page: one more entry after the real project
+// rows, in the SAME .browse-row/z-index sequence, so it reuses every
+// mechanic motion.ts already has for a row's entrance (translateY from
+// OFF-BOTTOM through PEEK to REST, browse.enterEase) with zero motion.ts
+// changes — it's just a row whose content happens to be plain text, not a
+// card grid. It never exits itself (nothing follows it), same as the last
+// project row used to be. No Paper, no shadow — a bare centered message;
+// content and style are both plain Tailwind classes right here, not a
+// token or a data file, since there's exactly one of it.
+import Chapter from "@components/Chapter.astro";
+import ProjectCard from "@components/ProjectCard.astro";
+import StageCenter from "@layouts/StageCenter.astro";
+import { projects } from "../../projects-data";
+import { browse, browseCssVars, totalPages } from "../../config";
+
+const projectRowCount = Math.ceil(projects.length / browse.columns);
+const rowCount = totalPages(projects.length, browse);
+const rows = Array.from({ length: rowCount }, (_, r) =>
+  r < projectRowCount
+    ? {
+        kind: "projects" as const,
+        items: projects.slice(r * browse.columns, (r + 1) * browse.columns),
+      }
+    : { kind: "done" as const },
+);
+---
+
+<StageCenter>
+  <Chapter id="browse">
+    <div
+      class:list={[
+        "relative",
+        browse.clipToBand && "overflow-hidden browse-max-h",
+      ]}
+    >
+      <div
+        class="browse-column overflow-y-auto browse-max-h space-y-(--browse-row-gutter)"
+        style={browseCssVars()}
+        data-el="browse-column"
+      >
+        {
+          rows.map((row, r) => (
+            <div class="browse-row" style={`z-index: ${rows.length - r}`}>
+              {row.kind === "projects" ? (
+                <div
+                  class:list={[
+                    "browse-row-inner grid justify-center gap-x-(--browse-col-gutter)",
+                    r < 2 && "opacity-0",
+                  ]}
+                >
+                  {row.items.map((project) => (
+                    <ProjectCard project={project} />
+                  ))}
+                </div>
+              ) : (
+                <div class="flex h-(--browse-card-height) items-center justify-center">
+                  <p class="font-sans font-thin text-5xl text-foreground">
+                    All Done
+                  </p>
+                </div>
+              )}
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </Chapter>
+</StageCenter>
+
+<style>
+  /* grid-template-columns: repeat(var(), var()) — a dynamic column COUNT
+     and dynamic track SIZE both driven by CSS custom properties — has no
+     Tailwind equivalent. CLAUDE.md reason 1. */
+  .browse-row-inner {
+    grid-template-columns: repeat(
+      var(--browse-columns),
+      var(--browse-card-width)
+    );
+  }
+
+  /* calc() with two CSS vars has no Tailwind equivalent — CLAUDE.md reason 1.
+     Shared by the static column baseline and the optional clipToBand band
+     above (same formula, same reason); motion.ts removes it from the column
+     when switching into the full-motion paged layout. */
+  .browse-max-h {
+    max-height: calc(
+      100vh - var(--mat-safe-inset-top) - var(--mat-safe-inset-bottom)
+    );
+  }
+</style>

@@ -11,15 +11,15 @@
  *
  * This component renders only the container + its config (as a data-config
  * JSON attribute) — the actual initScrollShapes() call lives in
- * motion/page-init.ts's initHomePage(), not a script here. A same-page
+ * global-scripts/page-init.ts's initHomePage(), not a script here. A same-page
  * <script data-astro-rerun> (needed so a repeat visit re-initializes this
  * component's non-persisted container) cannot use imports at all — Astro's
  * compiler forces any inline script with an extra attribute into
  * unprocessed is:inline treatment, and explicitly rejects combining
- * data-astro-rerun with `src` on the same tag. See page-init.ts's header
+ * data-astro-rerun with `src` on the same tag. See global-scripts/page-init.ts's header
  * comment for the full reasoning; this component just reads a config prop
  * and renders a div — remove the import from a page (and the matching
- * initScrollShapes call from that page's page-init.ts function) and it's
+ * initScrollShapes call from that page's global-scripts/page-init.ts function) and it's
  * gone with no other residue.
  */
 import type { ScrollShapesConfig } from "./config";

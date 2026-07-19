@@ -4,12 +4,9 @@
     "paths": {
       "@docs/*": ["./docs/*"],
       "@src/*": ["./src/*"],
-      "@assets/*": ["./src/assets/*"],
-      "@chapters/*": ["./src/chapters/*"],
       "@components/*": ["./src/components/*"],
-      "@config/*": ["./src/config/*"],
+      "@global-scripts/*": ["./src/global-scripts/*"],
       "@layouts/*": ["./src/layouts/*"],
-      "@motion/*": ["./src/motion/*"],
       "@pages/*": ["./src/pages/*"],
       "@styles/*": ["./src/styles/*"]
     }

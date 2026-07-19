@@ -5,7 +5,7 @@ import { ClientRouter } from "astro:transitions";
 
 interface Props {
   title?: string;
-  /** Identifies which page this is, for motion/page-init.ts's astro:page-load
+  /** Identifies which page this is, for global-scripts/page-init.ts's astro:page-load
    * dispatch (rendered as document.body.dataset.page) — see that file's
    * header comment for why dispatch-by-identity replaces each page having
    * its own re-runnable <script>. */
@@ -15,7 +15,7 @@ interface Props {
 const { title = "Bakehouse", page } = Astro.props;
 
 // Static (pre-JS / reduced-motion) clip-path, expressed with the same CSS
-// tokens that octagon.ts reads at runtime — both sources resolve identically.
+// tokens that components/stage/motion-script.ts reads at runtime — both sources resolve identically.
 // calc(0% + var(X)) simplifies to var(X); calc(100% - var(X)) stays as-is.
 const staticClipPath = [
   "polygon(",
@@ -71,7 +71,7 @@ const staticClipPath = [
          Full-bleed fixed div (inset: 0). The visible margins come entirely
          from vertex homes being inset by the --mat-safe-inset-* tokens — not
          from the div's own position. clip-path: polygon() defines the visible
-         area; octagon.ts rewrites it every frame. To change margins, edit the
+         area; components/stage/motion-script.ts rewrites it every frame. To change margins, edit the
          tokens in global.css; don't touch this element. -->
     <div
       id="midground-mat"
@@ -90,7 +90,7 @@ const staticClipPath = [
     <!-- Layer 3: Foreground stage — full-screen canvas, no layout opinion.
          pointer-events-none here so the transparent area of the stage doesn't
          block the nav. Chapter.astro restores pointer-events-auto on each paper.
-         opacity-0: page-transitions.ts fades this in on every load (cold or
+         opacity-0: components/page-transitions/motion-script.ts fades this in on every load (cold or
          in-app) as part of the enter sequence — baked in here, not set via
          gsap.fromTo's immediateRender, so there's no flash of full-opacity
          content before the fade starts (confirmed by sampling computed
@@ -199,18 +199,21 @@ const staticClipPath = [
 </style>
 
 <script>
-  import { initOctagonWobble, octagonController } from "../motion/octagon";
-  import { initPageTransitions } from "../motion/page-transitions";
+  import {
+    initOctagonWobble,
+    octagonController,
+  } from "../components/stage/motion-script";
+  import { initPageTransitions } from "../components/page-transitions/motion-script";
   import {
     initHomePage,
     initAboutPage,
     initWorkPage,
-  } from "../motion/page-init";
+  } from "../global-scripts/page-init";
   initOctagonWobble();
   initPageTransitions();
 
   // Dispatches to the current page's own bootstrapping on every load, cold
-  // or SPA — see page-init.ts's header comment for why this replaces each
+  // or SPA — see global-scripts/page-init.ts's header comment for why this replaces each
   // page having its own <script data-astro-rerun>.
   document.addEventListener("astro:page-load", () => {
     const page = document.body.dataset.page;
