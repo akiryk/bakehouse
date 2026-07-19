@@ -1,0 +1,55 @@
+{
+  "visibleOrder": [
+    "/work/thumb-winesmarts.webp",
+    "/work/thumb-oceanspray.webp",
+    "/work/thumb-carnival-fun.webp",
+    "/work/thumb-npr-donate.webp",
+    "/timeline/2014-npr-corepub.jpg",
+    "/work/thumb-favorites.webp",
+    "/work/thumb-registry.webp",
+    "/timeline/2025-gambel.png",
+    "/timeline/2026-budget-tool.png"
+  ],
+  "requestLog": [
+    {
+      "url": "http://localhost:4321/work/thumb-winesmarts.webp",
+      "startMs": 544
+    },
+    {
+      "url": "http://localhost:4321/work/thumb-oceanspray.webp",
+      "startMs": 544
+    },
+    {
+      "url": "http://localhost:4321/work/thumb-carnival-fun.webp",
+      "startMs": 544
+    },
+    {
+      "url": "http://localhost:4321/work/thumb-npr-donate.webp",
+      "startMs": 544
+    },
+    {
+      "url": "http://localhost:4321/timeline/2014-npr-corepub.jpg",
+      "startMs": 544
+    },
+    {
+      "url": "http://localhost:4321/work/thumb-favorites.webp",
+      "startMs": 544
+    },
+    {
+      "url": "http://localhost:4321/work/thumb-registry.webp",
+      "startMs": 544
+    },
+    {
+      "url": "http://localhost:4321/timeline/2025-gambel.png",
+      "startMs": 544
+    },
+    {
+      "url": "http://localhost:4321/timeline/2026-budget-tool.png",
+      "startMs": 544
+    },
+    {
+      "url": "http://localhost:4321/logo.svg",
+      "startMs": 544
+    }
+  ]
+}
