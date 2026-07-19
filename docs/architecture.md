@@ -12,22 +12,24 @@ Every animated page renders three stacked layers, back to front:
 1. **Background** — a flat fill (`--color-background`, white to start). Owned by
    `Base.astro`. It rarely changes.
 
-2. **Midground** — a near-rectangular SVG polygon (~8 vertices) filled with
-   `--color-mat`. It does **not** translate as a whole; instead each vertex drifts
+2. **Midground** — a near-rectangular shape (~8 vertices, CSS `clip-path`, not SVG) filled
+   with `--color-mat`. It does **not** translate as a whole; instead each vertex drifts
    independently within a small range, so the edges feel quietly alive. This lives in
-   `Base.astro` too, so it **persists across chapters** — papers come and go in front of
-   it while it stays put. Its motion is ambient and continuous, unrelated to scroll.
-   See `motion.md` → "The ambient mat."
+   `Base.astro` too, so it **persists across chapters** — chapter content comes and goes
+   in front of it while it stays put. Its motion is ambient and continuous, unrelated to
+   scroll. See `motion.md` → "The ambient mat."
 
    > "Octagon" is shorthand. The exact vertex count and positions are a tunable detail,
    > not a contract. Start rough; refine later. It should read as a rectangle at a glance.
 
-3. **Foreground** — the "paper": a rectangle (`--color-foreground`) that holds a
-   chapter's content. `Chapter.astro` is a neutral `[data-chapter]` marker; `Paper.astro`
-   is the opt-in card (white box + shadow) composed inside it. Paper is opt-in
-   composition — `Chapter` + `Paper` — not a hardcoded rule: most chapters compose the
-   two together, and on scroll that paper flies away as the next chapter's arrives, but a
-   chapter that skips `Paper` sits directly on the midground instead.
+3. **Foreground** — the layer that holds a chapter's content. `Chapter.astro` is a
+   neutral `[data-chapter]` marker — the transform target the engine sequences; it knows
+   nothing about how that content looks. Content optionally sits inside `Paper.astro` (a
+   white card + shadow, using `--color-foreground`) — most chapters compose the two
+   together, but `Paper` is one visual treatment of the foreground, not the layer's
+   identity: swap it for a different treatment tomorrow and the three-layer model doesn't
+   change. A chapter that skips `Paper` sits directly on the midground instead, and on
+   scroll it's the chapter's own content that flies away as the next arrives.
 
 ---
 
@@ -49,7 +51,7 @@ about how many there are.
   `footer` slots, where `main` accepts arbitrary markup.
 - **motion** — `motion-script.ts`, which describes the chapter's own intra-chapter reveals
   (a `beats` timeline, chapter-relative). How the chapter _enters and leaves the page_ —
-  its paper's fly-away, its arrival, its dwell length — is placed one level up, in the
+  its own fly-away, its arrival, its dwell length — is placed one level up, in the
   page's own script (`chapter()`/`enter()`/`exit()` in each page's `motion-script.ts`; see
   `motion.md`).
   This is the two-level model: chapter scripts stay chapter-relative, the page script is
@@ -64,7 +66,8 @@ and retime its motion without touching its content.
 ## The engine's contract is deliberately small
 
 The scroll engine knows about exactly one thing: **elements that enter and leave on
-scroll.** It does _not_ know what a "paper" is, or that papers fly upward. Each chapter
+scroll.** It does _not_ know what a "paper" is, or that a chapter's content flies
+upward. Each chapter
 hands the engine a small set of hooks (an enter and an exit), and the engine sequences
 them against scroll progress via a pinned ScrollTrigger.
 

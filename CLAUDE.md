@@ -94,8 +94,7 @@ Settled. Don't relitigate without flagging.
 
 Three visual layers, back to front: a flat **background**; a near-rectangular **stage**
 (~8 vertices, CSS `clip-path`, not SVG) whose vertices drift within a small range so the
-edges feel quietly alive; and a **foreground** that holds a chapter's content. Foreground
-content optionally sits inside a **paper** (a white card) — most chapters do, some don't.
+edges feel quietly alive; and a **foreground** that holds a chapter's content.
 
 Every page is an **ordered list of chapters**. A chapter has two **decoupled** parts:
 **content** (what it says) and **motion** (how it enters and leaves).
@@ -108,51 +107,41 @@ Every page is an **ordered list of chapters**. A chapter has two **decoupled** p
 bakehouse/
   CLAUDE.md
   README.md
-  docs/
+  docs/                    ← specialized guides; epics/ and stories/ track active work
   .claude/
-    settings.json            ← permission allowlist + format-on-write hook
+    settings.json          ← permission allowlist + format-on-write hook
   src/
-    styles/
-      global.css             ← Tailwind entry + @theme tokens  (ALL colors, fonts, type)
-    layouts/
-      Base.astro             ← background + persistent stage + <slot/>
-    components/
-      Chapter.astro          ← neutral [data-chapter] marker; the engine's transform target
-      Paper.astro            ← optional white-card composition: slots header / main / footer
-      stage/                  ← wobble/shape config + the ambient vertex wobble
-      scroll-engine/          ← beat/scroll config + the pinned scroll timeline engine
-      page-system/            ← per-page chapter list/matColor + page-scope authoring
-      motion-presets/         ← reusable motions: fadeInUpFrom/To, shiftUp, ...
-      timeline/
-        motion-script.ts      ← authoring layer for scroll-driven timeline chapters
-      page-transitions/
-        config.ts            ← cross-page transition timing
-        motion-script.ts      ← the exit/enter sequence for Astro's ClientRouter
-      beat-model/
-        motion-script.ts      ← the read-only timing API for the scroll engine
-    global-scripts/
-      page-init.ts           ← per-page bootstrapping dispatched on astro:page-load
-    pages/
-      index.astro            ← thin route for "/" — renders home/ content
-      about.astro            ← thin route for "/about" — renders about/ content
-      work.astro             ← thin route for "/work" — renders work-browse/ content
-      home/
-        motion-script.ts      ← home page's inter-chapter choreography
-        _chapters/            ← underscore-prefixed: excluded from Astro's routing
-          01-intro/
-            Content.astro    ← the "Dear ___," copy
-            motion-script.ts  ← this chapter's enter/exit (or "use the default")
-          02-services/, 03-timeline/  ← same shape
-      about/
-        motion-script.ts
-        _chapters/about/
-      work-browse/
-        motion-script.ts
-        config.ts            ← browse grid/card/paging knobs
-        projects-data.ts      ← portfolio project content
-        _chapters/browse/
-  public/                    ← static files served as-is
+    styles/                ← global.css: Tailwind entry + ALL @theme tokens
+    layouts/                 ← Base.astro (the persistent layers + <slot/>) and per-chapter
+                                positioning layouts (StageLeft, StageCenter, ...)
+    components/              ← reusable visual components (Chapter.astro, Paper.astro,
+                                Nav.astro, ProjectCard.astro, scroll-shapes/, ...) AND one
+                                folder per motion/config "concern" (stage/, scroll-engine/,
+                                page-system/, motion-presets/, timeline/, page-transitions/,
+                                beat-model/) — each concern folder holds a config.ts
+                                (tunable values) and/or motion-script.ts (the logic that
+                                reads them), never both mixed into one file.
+    global-scripts/          ← page-agnostic bootstrapping that must run exactly once and
+                                dispatch by page identity (page-init.ts)
+    pages/                   ← one thin route file per page (index.astro, about.astro,
+                                work.astro) that renders that page's content; a same-named
+                                folder per page holds its own motion-script.ts and a
+                                _chapters/<name>/ per chapter (Content.astro +
+                                motion-script.ts). _chapters is underscore-prefixed so
+                                Astro's router ignores it.
+  public/                  ← static files served as-is
 ```
+
+**Where does a new file go?**
+
+- A new reusable visual component → `components/`.
+- A new motion/config concern (its own tunable values and/or driving logic, reusable
+  across pages) → its own folder under `components/`, holding `config.ts` and/or
+  `motion-script.ts` — the same shape as every existing one.
+- A new page → `pages/<name>.astro` (thin route) + `pages/<name>/` (that page's own
+  `motion-script.ts` and `_chapters/`).
+- A new top-level directory under `src/`? Only if none of the above fit — flag it first
+  (see **How we work**).
 
 **Where do I change X?**
 
