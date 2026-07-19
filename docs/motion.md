@@ -233,6 +233,31 @@ Mark beat elements in the DOM with `data-beat="a"`, `data-beat="b"`, etc. so the
 
 ---
 
+## A page's resting color vs. scroll-driven morphs
+
+Two separate mechanisms, for two separate kinds of fact:
+
+- **`PageConfig.matColor`** (`page-system/config.ts`) — a static per-page fact: what color
+  the stage rests at, independent of scroll. Applied once, unconditionally, by
+  `initPageEngine()` before the `useScrollEngine` check and before the reduced-motion
+  branch — so it's correct on cold load, on SPA navigation, and under reduced motion alike,
+  with no tween involved at all.
+- **`morph({ from, to, over })`** (below) — a scroll-linked color _change_, placed as a
+  moment on a page's own scrubbed timeline. Use this when the color should visibly
+  transition as the user scrolls (home's tan → yellow → slate).
+
+**Don't use `morph()` to set a page's resting color**, even with `over: 0` — a moment
+placed at beat 0 of a _scrubbed_ (not _played_) timeline is a zero-duration edge case GSAP
+doesn't reliably render until the first real scroll event, so the page would show the wrong
+color until the user scrolls. This was a real bug, not a hypothetical: the `/work` page's
+mat stayed tan on arrival and only flipped to its intended color once scrolled, until the
+resting color was pulled out into `matColor` instead. If a page wants to _start_ at one
+color and then morph to another as chapters progress, both apply together: `matColor` sets
+where it starts, `morph()` moments in that page's own script (e.g. `home/motion-script.ts`)
+still transition it from there exactly as before.
+
+---
+
 ## Midground color morph
 
 Color choreography is authored explicitly in the page script (or a chapter's own
