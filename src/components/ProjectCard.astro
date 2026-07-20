@@ -9,9 +9,18 @@ import type { Project } from "../pages/work-browse/projects-data";
 
 interface Props {
   project: Project;
+  /**
+   * True only for the very first card overall — server-rendered with a real
+   * src so the browser's preload scanner fetches it before any JS runs.
+   * Every other card gets data-src instead; image-sequencer/motion-script.ts
+   * assigns src in visible order (see docs/image-loading.md — this grid's
+   * rows are absolutely positioned and transform-hidden off-screen, which
+   * defeats native loading="lazy"'s viewport heuristic).
+   */
+  eager?: boolean;
 }
 
-const { project } = Astro.props;
+const { project, eager = false } = Astro.props;
 const { slug, year, name, role, title, description, image } = project;
 ---
 
@@ -21,7 +30,39 @@ const { slug, year, name, role, title, description, image } = project;
   <div class="w-full h-(--browse-image-height) overflow-hidden shrink-0">
     {
       image ? (
-        <img src={image} alt={name} class="w-full h-full object-cover" />
+        eager ? (
+          <img
+            src={image}
+            alt={name}
+            loading="eager"
+            fetchpriority="high"
+            decoding="async"
+            class="w-full h-full object-cover"
+          />
+        ) : (
+          <>
+            <img
+              data-src={image}
+              alt={name}
+              loading="lazy"
+              decoding="async"
+              class="js-sequenced-image w-full h-full object-cover"
+            />
+            {/* No-JS fallback: hides the src-less placeholder above (the
+                sequencer never runs without JS) and shows a real img
+                instead — the <style> only takes effect when scripting is
+                disabled, which is what makes <noscript> render it at all. */}
+            <noscript>
+              <style>{`.js-sequenced-image{display:none}`}</style>
+              <img
+                src={image}
+                alt={name}
+                loading="lazy"
+                class="w-full h-full object-cover"
+              />
+            </noscript>
+          </>
+        )
       ) : (
         <div class="w-full h-full bg-neutral-400" aria-hidden="true" />
       )

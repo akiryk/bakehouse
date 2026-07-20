@@ -22,3 +22,7 @@ pnpm-debug.log*
 
 # jetbrains setting folder
 .idea/
+
+# perf harness results — ephemeral, machine- and moment-specific; the
+# harness script and docs are what's checked in, not individual runs
+tests/perf/results/*.json

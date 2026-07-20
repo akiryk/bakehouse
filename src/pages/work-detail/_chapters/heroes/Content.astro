@@ -65,7 +65,44 @@ let slot = totalSlots;
       >
         <Chapter id={`hero-image-${i}`} zIndex={slot--}>
           <div class="absolute inset-0 w-screen h-dvh">
-            <img src={hero.image} alt="" class="w-full h-full object-cover" />
+            {
+              i === 0 ? (
+                // Hero 0 is the only one visible without scrolling — real
+                // src, server-rendered, so the preload scanner fetches it
+                // before any JS runs. Every other hero is transform-hidden
+                // off-screen until its turn to enter, same defeated
+                // loading="lazy" heuristic as work-browse's cards (see
+                // docs/image-loading.md), so it gets the same data-src +
+                // sequencer treatment instead.
+                <img
+                  src={hero.image}
+                  alt=""
+                  loading="eager"
+                  fetchpriority="high"
+                  decoding="async"
+                  class="w-full h-full object-cover"
+                />
+              ) : (
+                <>
+                  <img
+                    data-src={hero.image}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    class="js-sequenced-image w-full h-full object-cover"
+                  />
+                  <noscript>
+                    <style>{`.js-sequenced-image{display:none}`}</style>
+                    <img
+                      src={hero.image}
+                      alt=""
+                      loading="lazy"
+                      class="w-full h-full object-cover"
+                    />
+                  </noscript>
+                </>
+              )
+            }
           </div>
         </Chapter>
       </div>

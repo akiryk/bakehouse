@@ -6,6 +6,10 @@ your own report" rule. This project has no UI framework and one animation layer 
 by GSAP/ScrollTrigger; reading the source can't tell you whether a scroll-driven effect
 actually looks right, only loading the page and observing it can.
 
+For "is this actually faster, with a number to back it up" rather than "does this
+look right," see `docs/perf-harness.md` instead — a related but separate standing
+tool, not the ad-hoc scripts described below.
+
 ## Status: not an installed dependency
 
 Playwright is **not** in `package.json`. It's fetched on demand via `npx` for ad-hoc
