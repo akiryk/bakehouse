@@ -34,8 +34,15 @@ export const heroContent: Record<string, Hero[]> = {
     },
     {
       image: "/work-detail/winesmarts/02-box.jpg",
-      // Flies away quickly to reveal "Done" — a snappier exit than the
-      // default, not a full-length fly-away like every hero before it.
+      // Plain default enter/exit — locks to hero 0's exit on one side and
+      // hero 2's entrance on the other (same duration/ease/distance on
+      // both, per config.ts's own comment on why that pairing must match).
+    },
+    {
+      image: "/work-detail/winesmarts/03-cards.jpg",
+      // The last hero: flies away quickly to reveal "Done" — a snappier
+      // exit than the default, not a full-length fly-away like every
+      // hero before it.
       motion: { imageExitBeats: 0.4 },
     },
   ],
