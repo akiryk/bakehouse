@@ -92,15 +92,17 @@ export async function initAboutPage(): Promise<void> {
 }
 
 export async function initWorkPage(): Promise<void> {
-  const [{ PAGE }, browseMotion] = await Promise.all([
+  const [{ PAGE }, browseMotion, { runImageSequencer }] = await Promise.all([
     import("../pages/work-browse/motion-script"),
     import("../pages/work-browse/_chapters/browse/motion-script").then(
       (m) => m.default,
     ),
+    import("../components/image-sequencer/motion-script"),
   ]);
 
   const model = initPageEngine(pages.work, PAGE, [browseMotion]);
   await exposeBeatModelForDevtools(model);
+  runImageSequencer();
 }
 
 /**
@@ -114,11 +116,15 @@ export async function initWorkDetailPage(): Promise<void> {
   const slug = document.body.dataset.slug;
   if (!slug) return;
 
-  const [{ heroContent }, { buildHeroPageScript, chapterIdsFor }] =
-    await Promise.all([
-      import("../pages/work-detail/hero-content"),
-      import("../pages/work-detail/motion-script"),
-    ]);
+  const [
+    { heroContent },
+    { buildHeroPageScript, chapterIdsFor },
+    { runImageSequencer },
+  ] = await Promise.all([
+    import("../pages/work-detail/hero-content"),
+    import("../pages/work-detail/motion-script"),
+    import("../components/image-sequencer/motion-script"),
+  ]);
 
   const heroes = heroContent[slug] ?? [];
   const ids = chapterIdsFor(heroes);
@@ -139,4 +145,5 @@ export async function initWorkDetailPage(): Promise<void> {
     chapterMotions,
   );
   await exposeBeatModelForDevtools(model);
+  runImageSequencer();
 }

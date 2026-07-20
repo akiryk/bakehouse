@@ -94,8 +94,8 @@ const rows = Array.from({ length: rowCount }, (_, r) =>
                     r < 2 && "opacity-0",
                   ]}
                 >
-                  {row.items.map((project) => (
-                    <ProjectCard project={project} />
+                  {row.items.map((project, i) => (
+                    <ProjectCard project={project} eager={r === 0 && i === 0} />
                   ))}
                 </div>
               ) : (
